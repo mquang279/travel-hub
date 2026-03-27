@@ -1,0 +1,240 @@
+[
+    {
+        "title": " Hà Nội",
+        "link": "https://travelviet.net.vn/vn/travel/ha-noi",
+        "travel": "44 Điểm du lịch",
+        "video": "58 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/3ae90aaf-c79f-4622-8046-937fb1d20338-ha-noijpg20240504070830-1jpg-1740825196.webp"
+    },
+    {
+        "title": " Cao Bằng",
+        "link": "https://travelviet.net.vn/vn/travel/cao-bang",
+        "travel": "27 Điểm du lịch",
+        "video": "34 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/cbjpg-1740825631.webp"
+    },
+    {
+        "title": " Tuyên Quang",
+        "link": "https://travelviet.net.vn/vn/travel/tuyen-quang",
+        "travel": "44 Điểm du lịch",
+        "video": "63 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/tqjpg-1740825661.webp"
+    },
+    {
+        "title": " Lào Cai",
+        "link": "https://travelviet.net.vn/vn/travel/lao-cai",
+        "travel": "53 Điểm du lịch",
+        "video": "64 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/lcjpg-1740825757.webp"
+    },
+    {
+        "title": " Điện Biên",
+        "link": "https://travelviet.net.vn/vn/travel/dien-bien",
+        "travel": "16 Điểm du lịch",
+        "video": "21 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/dbjpg-1740825795.webp"
+    },
+    {
+        "title": " Lai Châu",
+        "link": "https://travelviet.net.vn/vn/travel/lai-chau",
+        "travel": "23 Điểm du lịch",
+        "video": "24 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/lcjpg-1740825822.webp"
+    },
+    {
+        "title": " Sơn La",
+        "link": "https://travelviet.net.vn/vn/travel/son-la",
+        "travel": "30 Điểm du lịch",
+        "video": "36 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/sljpg-1740825816.webp"
+    },
+    {
+        "title": " Thái Nguyên",
+        "link": "https://travelviet.net.vn/vn/travel/thai-nguyen",
+        "travel": "41 Điểm du lịch",
+        "video": "53 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/tnjpg-1740825549.webp"
+    },
+    {
+        "title": " Lạng Sơn",
+        "link": "https://travelviet.net.vn/vn/travel/lang-son",
+        "travel": "24 Điểm du lịch",
+        "video": "32 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/lsjpg-1740825842.webp"
+    },
+    {
+        "title": " Quảng Ninh",
+        "link": "https://travelviet.net.vn/vn/travel/quang-ninh",
+        "travel": "38 Điểm du lịch",
+        "video": "47 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/qnjpg-1740825849.webp"
+    },
+    {
+        "title": " Phú Thọ",
+        "link": "https://travelviet.net.vn/vn/travel/phu-tho",
+        "travel": "72 Điểm du lịch",
+        "video": "80 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/ptjpg-1740825561.webp"
+    },
+    {
+        "title": " Bắc Ninh",
+        "link": "https://travelviet.net.vn/vn/travel/bac-ninh",
+        "travel": "33 Điểm du lịch",
+        "video": "40 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/bnjpeg-1740825871.webp"
+    },
+    {
+        "title": " Hải Phòng",
+        "link": "https://travelviet.net.vn/vn/travel/hai-phong",
+        "travel": "40 Điểm du lịch",
+        "video": "39 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/hpjpg-1740825536.webp"
+    },
+    {
+        "title": " Hưng Yên",
+        "link": "https://travelviet.net.vn/vn/travel/hung-yen",
+        "travel": "25 Điểm du lịch",
+        "video": "25 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/hyjpg-1740825881.webp"
+    },
+    {
+        "title": " Ninh Bình",
+        "link": "https://travelviet.net.vn/vn/travel/ninh-binh",
+        "travel": "55 Điểm du lịch",
+        "video": "55 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/nbjpg-1740825940.webp"
+    },
+    {
+        "title": " Thanh Hóa",
+        "link": "https://travelviet.net.vn/vn/travel/thanh-hoa",
+        "travel": "27 Điểm du lịch",
+        "video": "28 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/thjpeg-1740825616.webp"
+    },
+    {
+        "title": " Nghệ An",
+        "link": "https://travelviet.net.vn/vn/travel/nghe-an",
+        "travel": "26 Điểm du lịch",
+        "video": "25 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/najpg-1740825607.webp"
+    },
+    {
+        "title": " Hà Tĩnh",
+        "link": "https://travelviet.net.vn/vn/travel/ha-tinh",
+        "travel": "19 Điểm du lịch",
+        "video": "19 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/htjpg-1740825950.webp"
+    },
+    {
+        "title": " Quảng Trị",
+        "link": "https://travelviet.net.vn/vn/travel/quang-tri",
+        "travel": "52 Điểm du lịch",
+        "video": "52 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/qtjpg-1740825969.webp"
+    },
+    {
+        "title": " Thừa Thiên Huế",
+        "link": "https://travelviet.net.vn/vn/travel/thua-thien-hue",
+        "travel": "35 Điểm du lịch",
+        "video": "35 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/tthjpg-1740825975.webp"
+    },
+    {
+        "title": " Đà Nẵng",
+        "link": "https://travelviet.net.vn/vn/travel/da-nang",
+        "travel": "50 Điểm du lịch",
+        "video": "50 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/dnjpg-1740825522.webp"
+    },
+    {
+        "title": " Quảng Ngãi",
+        "link": "https://travelviet.net.vn/vn/travel/quang-ngai",
+        "travel": "43 Điểm du lịch",
+        "video": "43 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/qngjpg-1740826000.webp"
+    },
+    {
+        "title": " Khánh Hòa",
+        "link": "https://travelviet.net.vn/vn/travel/khanh-hoa",
+        "travel": "68 Điểm du lịch",
+        "video": "82 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/khjpeg-1740826039.webp"
+    },
+    {
+        "title": " Gia Lai",
+        "link": "https://travelviet.net.vn/vn/travel/gia-lai",
+        "travel": "60 Điểm du lịch",
+        "video": "59 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/gljpg-1740826080.webp"
+    },
+    {
+        "title": " Đắk Lắk",
+        "link": "https://travelviet.net.vn/vn/travel/dak-lak",
+        "travel": "52 Điểm du lịch",
+        "video": "52 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/dljpg-1740826090.webp"
+    },
+    {
+        "title": " Lâm Đồng",
+        "link": "https://travelviet.net.vn/vn/travel/lam-dong",
+        "travel": "81 Điểm du lịch",
+        "video": "81 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/ldojpg-1740826111.webp"
+    },
+    {
+        "title": " Tây Ninh",
+        "link": "https://travelviet.net.vn/vn/travel/tay-ninh",
+        "travel": "29 Điểm du lịch",
+        "video": "29 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/tnjpg-1740826135.webp"
+    },
+    {
+        "title": " Đồng Nai",
+        "link": "https://travelviet.net.vn/vn/travel/dong-nai",
+        "travel": "36 Điểm du lịch",
+        "video": "36 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/dnjpg-1740826181.webp"
+    },
+    {
+        "title": " TP Hồ Chí Minh",
+        "link": "https://travelviet.net.vn/vn/travel/tp-ho-chi-minh-tphcm",
+        "travel": "73 Điểm du lịch",
+        "video": "72 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/900b44df-7ed6-4513-81ff-f886ec010a40-ho-chi-minhjpg20240504070857jpg-1740825493.webp"
+    },
+    {
+        "title": " Vĩnh Long",
+        "link": "https://travelviet.net.vn/vn/travel/vinh-long",
+        "travel": "37 Điểm du lịch",
+        "video": "45 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/vljpg-1740826239.webp"
+    },
+    {
+        "title": " Đồng Tháp",
+        "link": "https://travelviet.net.vn/vn/travel/dong-thap",
+        "travel": "32 Điểm du lịch",
+        "video": "32 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/dtjpg-1740826244.webp"
+    },
+    {
+        "title": " An Giang",
+        "link": "https://travelviet.net.vn/vn/travel/an-giang",
+        "travel": "55 Điểm du lịch",
+        "video": "56 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/agjpg-1740826252.webp"
+    },
+    {
+        "title": " Cần Thơ",
+        "link": "https://travelviet.net.vn/vn/travel/can-tho",
+        "travel": "55 Điểm du lịch",
+        "video": "55 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/upload_s3/1/ctjpg-1740826273.webp"
+    },
+    {
+        "title": " Cà Mau",
+        "link": "https://travelviet.net.vn/vn/travel/ca-mau",
+        "travel": "25 Điểm du lịch",
+        "video": "25 Video",
+        "image": "https://images.travelviet.net/vietnam/s3/s3_amazon/97574f18-7ff1-449e-a5be-6563b672fc14-ca-maujpg20240504071904.jpg"
+    }
+]
