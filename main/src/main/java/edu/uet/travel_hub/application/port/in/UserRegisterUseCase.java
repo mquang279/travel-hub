@@ -1,5 +1,5 @@
 package edu.uet.travel_hub.application.port.in;
 
-public class UserRegisterUseCase {
+public interface UserRegisterUseCase {
     
 }

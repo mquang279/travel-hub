@@ -1,5 +1,5 @@
 package edu.uet.travel_hub.application.usecases;
 
-public class UserRegisterService {
+public class UserRegisterService implements UserRegisterUseCase{
     
 }

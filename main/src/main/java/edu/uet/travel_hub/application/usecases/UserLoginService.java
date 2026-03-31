@@ -1,5 +1,5 @@
 package edu.uet.travel_hub.application.usecases;
 
-public class UserLoginService {
+public class UserLoginService implements UserLoginUseCase {
     
 }
