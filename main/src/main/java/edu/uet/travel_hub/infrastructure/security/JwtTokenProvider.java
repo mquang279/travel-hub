@@ -13,16 +13,18 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.stereotype.Component;
 
 import com.nimbusds.jose.util.Base64;
 
 import edu.uet.travel_hub.application.port.out.TokenProvider;
 import edu.uet.travel_hub.domain.model.UserModel;
 
+@Component
 public class JwtTokenProvider implements TokenProvider {
     private final JwtEncoder jwtEncoder;
 
-    @Value("${api.secret.key}")
+    @Value("${secret.key}")
     private String secretKey;
 
     @Value("${access.token.expiration.time}")
@@ -31,7 +33,7 @@ public class JwtTokenProvider implements TokenProvider {
     @Value("${refresh.token.expiration.time}")
     private long refreshTokenExpiration;
 
-    public static final MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS512;
+    public static final MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS256;
 
     public JwtTokenProvider(JwtEncoder jwtEncoder) {
         this.jwtEncoder = jwtEncoder;

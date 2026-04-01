@@ -28,7 +28,7 @@ import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
 
 @Configuration
 public class SecurityConfig {
-    @Value("${api.secret.key}")
+    @Value("${secret.key}")
     private String secretKey;
 
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
