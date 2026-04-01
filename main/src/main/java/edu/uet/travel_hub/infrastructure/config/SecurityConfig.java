@@ -24,6 +24,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;
 
+import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
+
 @Configuration
 public class SecurityConfig {
     @Value("${api.secret.key}")
@@ -59,7 +61,6 @@ public class SecurityConfig {
                                         "/api/v1/minio/**")
                                 .hasRole("ADMIN")
                                 .anyRequest().permitAll())
-                // Add BearerTokenAuthenticationFilter
                 .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

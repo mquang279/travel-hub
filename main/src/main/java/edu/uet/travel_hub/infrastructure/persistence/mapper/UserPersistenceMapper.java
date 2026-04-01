@@ -5,10 +5,13 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.UserJpaEntity;
 
 public class UserPersistenceMapper {
     public UserJpaEntity toEntity(UserModel user) {
-        return new UserJpaEntity();
+        return UserJpaEntity.builder()
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .hashPassword(user.getPassword()).build();
     }
 
     public UserModel toDomain(UserJpaEntity user) {
-        return new UserModel(null, null, null);
+        return new UserModel(null, null, null, null);
     }
 }
