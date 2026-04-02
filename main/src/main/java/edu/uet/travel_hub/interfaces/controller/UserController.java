@@ -1,8 +1,0 @@
-package edu.uet.travel_hub.interfaces.controller;
-
-import org.springframework.web.bind.annotation.RestController;
-
-@RestController
-public class UserController {
-    
-}

@@ -6,7 +6,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -24,9 +23,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;
 
+import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
+
 @Configuration
 public class SecurityConfig {
-    @Value("${api.secret.key}")
+    @Value("${secret.key}")
     private String secretKey;
 
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
@@ -47,19 +48,9 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults()) // Enable CORS
                 .authorizeHttpRequests(
                         (authz) -> authz
-                                .requestMatchers(
-                                        "/api/v1/resumes/**")
-                                .authenticated()
-                                .requestMatchers(HttpMethod.POST,
-                                        "/api/v1/companies/**",
-                                        "/api/v1/jobs/**",
-                                        "/api/v1/permissions/**",
-                                        "/api/v1/roles/**",
-                                        "/api/v1/users/**",
-                                        "/api/v1/minio/**")
-                                .hasRole("ADMIN")
+                                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                                .requestMatchers("/api/auth/logout").authenticated()
                                 .anyRequest().permitAll())
-                // Add BearerTokenAuthenticationFilter
                 .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
