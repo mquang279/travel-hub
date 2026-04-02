@@ -30,4 +30,16 @@ public class UserRepositoryImpl implements UserRepository {
     public Optional<UserModel> findById(Long id) {
         return this.userJpaRepository.findById(id).map(mapper::toDomain);
     }
+
+    @Override
+    public Optional<UserModel> findByEmail(String email) {
+        return this.userJpaRepository.findByEmail(email).map(mapper::toDomain);
+    }
+
+    @Override
+    public void updateRefreshToken(Long id, String refreshToken) {
+        UserJpaEntity entity = this.userJpaRepository.findById(id).get();
+        entity.setRefreshToken(refreshToken);
+        this.userJpaRepository.save(entity);
+    }
 }

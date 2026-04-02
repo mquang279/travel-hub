@@ -8,4 +8,8 @@ public interface UserRepository {
     UserModel save(UserModel user);
 
     Optional<UserModel> findById(Long id);
+
+    Optional<UserModel> findByEmail(String email);
+
+    void updateRefreshToken(Long id, String refreshToken);
 }
