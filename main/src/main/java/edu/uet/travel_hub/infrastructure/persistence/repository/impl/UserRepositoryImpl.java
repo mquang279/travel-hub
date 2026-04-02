@@ -1,4 +1,4 @@
-package edu.uet.travel_hub.infrastructure.persistence.repository;
+package edu.uet.travel_hub.infrastructure.persistence.repository.impl;
 
 import java.util.Optional;
 
@@ -8,6 +8,7 @@ import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.UserModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserJpaEntity;
 import edu.uet.travel_hub.infrastructure.persistence.mapper.UserPersistenceMapper;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Repository
 public class UserRepositoryImpl implements UserRepository {

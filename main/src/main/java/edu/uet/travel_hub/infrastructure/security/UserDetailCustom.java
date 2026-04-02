@@ -7,7 +7,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserJpaEntity;
-import edu.uet.travel_hub.infrastructure.persistence.repository.UserJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Component("userDetailsService")
 public class UserDetailCustom implements UserDetailsService {

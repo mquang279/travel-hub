@@ -1,4 +1,4 @@
-package edu.uet.travel_hub.infrastructure.persistence.repository;
+package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
 import java.util.Optional;
 
