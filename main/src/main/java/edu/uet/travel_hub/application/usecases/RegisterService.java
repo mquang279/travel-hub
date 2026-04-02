@@ -9,6 +9,7 @@ import edu.uet.travel_hub.application.port.in.RegisterUseCase;
 import edu.uet.travel_hub.application.port.out.PasswordEncoder;
 import edu.uet.travel_hub.application.port.out.TokenProvider;
 import edu.uet.travel_hub.application.port.out.UserRepository;
+import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.domain.model.UserModel;
 
 @Service
@@ -27,7 +28,7 @@ public class RegisterService implements RegisterUseCase {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         String hashPassword = encoder.encode(request.password());
-        UserModel user = new UserModel(request.email(), request.username(), hashPassword);
+        UserModel user = new UserModel(request.email(), request.username(), hashPassword, Role.USER);
         UserModel savedUser = this.userRepository.save(user);
         String accessToken = this.tokenProvider.generateAccessToken(savedUser);
         String refreshToken = this.tokenProvider.generateRefreshToken(savedUser);

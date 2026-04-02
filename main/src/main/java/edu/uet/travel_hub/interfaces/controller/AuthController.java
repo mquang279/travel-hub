@@ -39,10 +39,12 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> loging(@RequestBody LoginRequest request) {
-        AuthResponse response = this.loginService.login(request);        
+        AuthResponse response = this.loginService.login(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println(authentication);
         return ResponseEntity.ok().body(response);
     }
-    
+
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -50,5 +52,5 @@ public class AuthController {
         this.logoutService.logout(email);
         return ResponseEntity.noContent().build();
     }
-    
+
 }

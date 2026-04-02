@@ -1,5 +1,10 @@
 package edu.uet.travel_hub.infrastructure.security;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -22,10 +27,12 @@ public class UserDetailCustom implements UserDetailsService {
         UserJpaEntity user = userJpaRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User with email " + email + " not found."));
 
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(user.getRole().getDescription()));
         return User.builder()
                 .username(user.getEmail())
                 .password(user.getHashPassword())
-                .authorities("USER")
+                .authorities(authorities)
                 .build();
     }
 }

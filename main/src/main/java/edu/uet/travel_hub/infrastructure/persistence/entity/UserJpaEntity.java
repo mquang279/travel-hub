@@ -2,8 +2,11 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
 
+import edu.uet.travel_hub.domain.enums.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -33,6 +36,9 @@ public class UserJpaEntity {
     @Column(unique = true)
     @Email
     private String email;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     private String hashPassword;
 

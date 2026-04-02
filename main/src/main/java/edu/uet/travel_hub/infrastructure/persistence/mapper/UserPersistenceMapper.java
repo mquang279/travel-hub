@@ -11,10 +11,12 @@ public class UserPersistenceMapper {
         return UserJpaEntity.builder()
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .hashPassword(user.getPassword()).build();
+                .hashPassword(user.getPassword())
+                .role(user.getRole())
+                .build();
     }
 
     public UserModel toDomain(UserJpaEntity user) {
-        return new UserModel(user.getId(), user.getEmail(), user.getUsername(), user.getHashPassword());
+        return new UserModel(user.getId(), user.getEmail(), user.getUsername(), user.getHashPassword(), user.getRole());
     }
 }
