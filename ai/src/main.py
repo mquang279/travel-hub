@@ -4,6 +4,7 @@ from fastapi.concurrency import asynccontextmanager
 from fastapi.responses import StreamingResponse
 import json
 
+from src.entity.setting import get_settings
 from src.services import itinerary
 
 
@@ -23,11 +24,15 @@ async def init_db(pool):
         )
 
 
+settings = get_settings()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup
     app.state.pg_pool = await asyncpg.create_pool(
-        "postgresql://postgres:postgres@localhost/mydatabase"
+        settings.db_connection_string,
+        statement_cache_size=settings.db_statement_cache_size,
     )
     await init_db(app.state.pg_pool)
     app.state.itinerary_service = itinerary.new_itinerary_service()

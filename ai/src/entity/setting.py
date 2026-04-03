@@ -8,6 +8,8 @@ class Settings(BaseSettings):
         extra="ignore", env_file=".env"
     )  # <-- bỏ qua key dư
     google_api_keys: str = ""
+    db_connection_string: str = "postgresql://postgres:postgres@localhost:5432/postgres"
+    db_statement_cache_size: int = 0
 
 
 @lru_cache
