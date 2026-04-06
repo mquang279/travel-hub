@@ -1,7 +1,7 @@
 package edu.uet.travel_hub.application.usecases.impl;
 
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
-import edu.uet.travel_hub.application.usecases.FollowUseCase;
+import edu.uet.travel_hub.application.port.in.FollowUseCase;
 import edu.uet.travel_hub.domain.dto.response.UserFollowResponse;
 import edu.uet.travel_hub.infrastructure.persistence.entity.FollowEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;

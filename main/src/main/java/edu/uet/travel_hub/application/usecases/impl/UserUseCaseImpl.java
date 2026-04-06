@@ -1,7 +1,7 @@
 package edu.uet.travel_hub.application.usecases.impl;
 
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
-import edu.uet.travel_hub.application.usecases.UserUseCase;
+import edu.uet.travel_hub.application.port.in.UserUseCase;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;

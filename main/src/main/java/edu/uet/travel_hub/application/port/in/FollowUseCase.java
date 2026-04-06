@@ -1,4 +1,4 @@
-package edu.uet.travel_hub.application.usecases;
+package edu.uet.travel_hub.application.port.in;
 
 import edu.uet.travel_hub.domain.dto.response.UserFollowResponse;
 import org.springframework.data.domain.Page;
