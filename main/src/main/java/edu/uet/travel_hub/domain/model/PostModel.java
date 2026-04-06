@@ -15,4 +15,8 @@ public class PostModel {
     private String description;
 
     private String imageUrl;
+
+    private String location;
+
+    private Long userId;
 }

@@ -1,11 +1,14 @@
 package edu.uet.travel_hub.application.usecases;
 
+import org.springframework.stereotype.Service;
+
 import edu.uet.travel_hub.application.dto.request.ModifyPostRequest;
 import edu.uet.travel_hub.application.port.in.ModifyPostUseCase;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
 
+@Service
 public class ModifyPostService implements ModifyPostUseCase {
     private final PostRepository postRepository;
     private final CurrentUserProvider userProvider;
