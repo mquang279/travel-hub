@@ -2,15 +2,20 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
 
+import edu.uet.travel_hub.domain.enums.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -19,6 +24,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class UserJpaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +34,11 @@ public class UserJpaEntity {
     private String username;
 
     @Column(unique = true)
+    @Email
     private String email;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     private String hashPassword;
 

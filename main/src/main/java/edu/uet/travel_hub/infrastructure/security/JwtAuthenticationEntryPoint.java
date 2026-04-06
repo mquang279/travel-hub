@@ -1,4 +1,4 @@
-package edu.uet.travel_hub.infrastructure.config;
+package edu.uet.travel_hub.infrastructure.security;
 
 import java.io.IOException;
 import java.util.Map;
