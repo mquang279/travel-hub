@@ -17,9 +17,9 @@ public class UserProfileResponse {
     private String phoneNumber;
     private LocalDate dateOfBirth;
     private String gender;
-    private String location; // Country or City location
+    private String location; 
     private int followersCount;
     private int followingCount;
     private int postsCount;
-    private boolean isFollowing; // Check if the current user is following this profile
+    private boolean isFollowing;
 }

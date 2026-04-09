@@ -27,7 +27,12 @@ public class UserEntity {
     private String gender;
     private String location;
 
+    @Column(nullable = false, columnDefinition = "integer default 0")
     private int followersCount;
+
+    @Column(nullable = false, columnDefinition = "integer default 0")
     private int followingCount;
+
+    @Column(nullable = false, columnDefinition = "integer default 0")
     private int postsCount;
 }

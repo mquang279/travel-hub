@@ -10,5 +10,5 @@ public class UserSummaryResponse {
     private String avatarUrl;
     private String name;
     private String username;
-    private boolean isFollowing; // Trạng thái user hiện tại có đang theo dõi user trong danh sách này hay không
+    private boolean isFollowing; 
 }

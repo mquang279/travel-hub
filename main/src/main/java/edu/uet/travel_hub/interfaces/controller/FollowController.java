@@ -22,8 +22,7 @@ public class FollowController {
 
     private final FollowUseCase followUseCase;
 
-    // MOCK_CURRENT_USER_ID is just for bypassing auth context temporarily
-    private final Long MOCK_CURRENT_USER_ID = 1L;
+    private static final Long MOCK_CURRENT_USER_ID = 1L;
 
     @GetMapping("/{userId}/followers")
     public ResponseEntity<Page<UserFollowResponse>> getFollowers(

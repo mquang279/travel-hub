@@ -23,16 +23,16 @@ public class UserController {
 	private final UserUseCase userUseCase;
 
 	// MOCK_CURRENT_USER_ID is just for bypassing auth context temporarily
-	private final Long MOCK_CURRENT_USER_ID = 1L;
+	private static final Long MOCK_CURRENT_USER_ID = 1L;
 
 	@GetMapping("/me")
 	public ResponseEntity<UserProfileResponse> getMyProfile() {
-		return ResponseEntity.ok(userUseCase.getProfile(MOCK_CURRENT_USER_ID));
+		return ResponseEntity.ok(userUseCase.getProfile(MOCK_CURRENT_USER_ID, MOCK_CURRENT_USER_ID));
 	}
 
 	@GetMapping("/{userId}")
 	public ResponseEntity<UserProfileResponse> getProfile(@PathVariable Long userId) {
-		return ResponseEntity.ok(userUseCase.getProfile(userId));
+		return ResponseEntity.ok(userUseCase.getProfile(MOCK_CURRENT_USER_ID, userId));
 	}
 
 	@PutMapping("/me")

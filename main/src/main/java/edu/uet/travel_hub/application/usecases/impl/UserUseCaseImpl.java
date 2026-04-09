@@ -5,6 +5,7 @@ import edu.uet.travel_hub.application.port.in.UserUseCase;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
+import edu.uet.travel_hub.infrastructure.persistence.repository.JpaFollowRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.JpaUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,12 +17,18 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserUseCaseImpl implements UserUseCase {
 
     private final JpaUserRepository userRepository;
+    private final JpaFollowRepository followRepository;
 
     @Override
-    public UserProfileResponse getProfile(Long userId) {
-        UserEntity user = userRepository.findById(userId)
+    public UserProfileResponse getProfile(Long currentUserId, Long targetUserId) {
+        UserEntity user = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return mapToResponse(user);
+
+        boolean isFollowing = currentUserId != null
+                && !currentUserId.equals(targetUserId)
+                && followRepository.existsByFollowerIdAndFollowingId(currentUserId, targetUserId);
+
+        return mapToResponse(user, isFollowing);
     }
 
     @Override
@@ -40,12 +47,16 @@ public class UserUseCaseImpl implements UserUseCase {
         if (request.getLocation() != null) user.setLocation(request.getLocation());
 
         userRepository.save(user);
-        return mapToResponse(user);
+        return mapToResponse(user, false);
     }
 
     @Override
     @Transactional
     public String uploadAvatar(Long userId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Avatar file must not be empty");
+        }
+
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -57,7 +68,7 @@ public class UserUseCaseImpl implements UserUseCase {
         return uploadedUrl;
     }
 
-    private UserProfileResponse mapToResponse(UserEntity user) {
+    private UserProfileResponse mapToResponse(UserEntity user, boolean isFollowing) {
         return UserProfileResponse.builder()
                 .id(user.getId())
                 .avatarUrl(user.getAvatarUrl())
@@ -72,6 +83,7 @@ public class UserUseCaseImpl implements UserUseCase {
                 .followersCount(user.getFollowersCount())
                 .followingCount(user.getFollowingCount())
                 .postsCount(user.getPostsCount())
+                .isFollowing(isFollowing)
                 .build();
     }
 }
