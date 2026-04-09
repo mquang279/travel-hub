@@ -1,4 +1,4 @@
-package edu.uet.travel_hub.application.usecases.impl;
+package edu.uet.travel_hub.application.usecases;
 
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
 import edu.uet.travel_hub.application.port.in.UserUseCase;
@@ -15,7 +15,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class UserUseCaseImpl implements UserUseCase {
-
+    // TODO: Sửa lại để phụ thuộc vào UserRepository & FollowRepository ở port/out
+    // Tách thành các Service GetUserProfileService, UpdateProfileService implements các usecase ở port/in
+    // mapToResponse thì ông cũng tách thành 1 cái mapper đặt ở application/mapper
     private final JpaUserRepository userRepository;
     private final JpaFollowRepository followRepository;
 
@@ -37,14 +39,22 @@ public class UserUseCaseImpl implements UserUseCase {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        if (request.getName() != null) user.setName(request.getName());
-        if (request.getUsername() != null) user.setUsername(request.getUsername());
-        if (request.getBio() != null) user.setBio(request.getBio());
-        if (request.getEmail() != null) user.setEmail(request.getEmail());
-        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
-        if (request.getDateOfBirth() != null) user.setDateOfBirth(request.getDateOfBirth());
-        if (request.getAvatarUrl() != null) user.setAvatarUrl(request.getAvatarUrl());
-        if (request.getLocation() != null) user.setLocation(request.getLocation());
+        if (request.getName() != null)
+            user.setName(request.getName());
+        if (request.getUsername() != null)
+            user.setUsername(request.getUsername());
+        if (request.getBio() != null)
+            user.setBio(request.getBio());
+        if (request.getEmail() != null)
+            user.setEmail(request.getEmail());
+        if (request.getPhoneNumber() != null)
+            user.setPhoneNumber(request.getPhoneNumber());
+        if (request.getDateOfBirth() != null)
+            user.setDateOfBirth(request.getDateOfBirth());
+        if (request.getAvatarUrl() != null)
+            user.setAvatarUrl(request.getAvatarUrl());
+        if (request.getLocation() != null)
+            user.setLocation(request.getLocation());
 
         userRepository.save(user);
         return mapToResponse(user, false);
@@ -61,10 +71,10 @@ public class UserUseCaseImpl implements UserUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         String uploadedUrl = "https://example.com/avatars/" + file.getOriginalFilename();
-        
+
         user.setAvatarUrl(uploadedUrl);
         userRepository.save(user);
-        
+
         return uploadedUrl;
     }
 

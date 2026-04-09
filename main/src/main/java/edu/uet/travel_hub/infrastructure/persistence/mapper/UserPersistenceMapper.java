@@ -3,12 +3,12 @@ package edu.uet.travel_hub.infrastructure.persistence.mapper;
 import org.springframework.stereotype.Component;
 
 import edu.uet.travel_hub.domain.model.UserModel;
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserJpaEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 
 @Component
 public class UserPersistenceMapper {
-    public UserJpaEntity toEntity(UserModel user) {
-        return UserJpaEntity.builder()
+    public UserEntity toEntity(UserModel user) {
+        return UserEntity.builder()
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .hashPassword(user.getPassword())
@@ -16,7 +16,7 @@ public class UserPersistenceMapper {
                 .build();
     }
 
-    public UserModel toDomain(UserJpaEntity user) {
+    public UserModel toDomain(UserEntity user) {
         return new UserModel(user.getId(), user.getEmail(), user.getUsername(), user.getHashPassword(), user.getRole());
     }
 }

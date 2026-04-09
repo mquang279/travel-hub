@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.UserModel;
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserJpaEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.mapper.UserPersistenceMapper;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
@@ -22,8 +22,8 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public UserModel save(UserModel user) {
-        UserJpaEntity entity = mapper.toEntity(user);
-        UserJpaEntity saved = this.userJpaRepository.save(entity);
+        UserEntity entity = mapper.toEntity(user);
+        UserEntity saved = this.userJpaRepository.save(entity);
         return mapper.toDomain(saved);
     }
 
@@ -39,7 +39,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void updateRefreshToken(Long id, String refreshToken) {
-        UserJpaEntity entity = this.userJpaRepository.findById(id).get();
+        UserEntity entity = this.userJpaRepository.findById(id).get();
         entity.setRefreshToken(refreshToken);
         this.userJpaRepository.save(entity);
     }

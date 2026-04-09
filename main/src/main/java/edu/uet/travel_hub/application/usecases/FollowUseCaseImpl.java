@@ -1,4 +1,4 @@
-package edu.uet.travel_hub.application.usecases.impl;
+package edu.uet.travel_hub.application.usecases;
 
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
 import edu.uet.travel_hub.application.port.in.FollowUseCase;
@@ -18,7 +18,11 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class FollowUseCaseImpl implements FollowUseCase {
-
+    // TODO: Sửa lại để phụ thuộc vào UserRepository & FollowRepository ở port/out
+    // Tách thành các interface GetFollowersUseCase, GetFollowingUseCase, FollowUseCase, UnfollowUseCase tại port/in rồi sau đó
+    // Implement các interface đó: GetFollowersService, GetFollowingService,... đặt tại application/usecases
+    // mapToResponse thì ông tách thành 1 cái mapper đặt ở application/mapper
+    // Ở đây, ông không nên dùng trực tiếp FollowEntity, mà nên dùng thằng khác ở Domain
     private final JpaFollowRepository followRepository;
     private final JpaUserRepository userRepository;
 
