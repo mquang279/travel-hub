@@ -5,7 +5,11 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 import json
 
-from src.entity.preference import PreferenceProfileCommand, PreferenceResponse, PreferenceUpdateRequest
+from src.entity.preference import (
+    PreferenceProfileCommand,
+    PreferenceResponse,
+    PreferenceUpdateRequest,
+)
 from src.entity.setting import get_settings
 from src.services.embedding import EmbeddingService
 from src.services.embedding_grpc import start_grpc_server
@@ -90,7 +94,9 @@ def read_item(item_id: int, q: str | None = None):
 
 
 @app.put("/api/users/{user_id}/preferences", response_model=PreferenceResponse)
-async def update_preferences(user_id: int, payload: PreferenceUpdateRequest, request: Request):
+async def update_preferences(
+    user_id: int, payload: PreferenceUpdateRequest, request: Request
+):
     pg_pool = request.app.state.pg_pool
     return await request.app.state.preference_profile_processor.upsert_profile(
         command=PreferenceProfileCommand(
