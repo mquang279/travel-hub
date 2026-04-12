@@ -36,3 +36,4 @@ build/
 *.pyc
 
 **/__pycache__/
+ai/src/__pycache__/main.cpython-311.pyc
