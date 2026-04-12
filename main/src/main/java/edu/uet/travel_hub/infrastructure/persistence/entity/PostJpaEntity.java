@@ -1,21 +1,16 @@
 package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
-import java.util.List;
 
-import edu.uet.travel_hub.domain.enums.Role;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,41 +19,29 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Entity
-@Table(name = "users")
+@Table(name = "posts")
 @Data
 @AllArgsConstructor
-@NoArgsConstructor
 @Builder
-public class UserJpaEntity {
+@NoArgsConstructor
+public class PostJpaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
-    private String username;
+    private String description;
 
-    @Column(unique = true)
-    @Email
-    private String email;
+    private String imageUrl;
 
-    @Enumerated(EnumType.STRING)
-    private Role role;
+    private String location;
 
-    private String hashPassword;
-
-    private String bio;
-
-    private Integer age;
-
-    @Column(length = 1000, unique = true)
-    private String refreshToken;
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserJpaEntity user;
 
     private Instant createdAt;
 
     private Instant updatedAt;
-
-    @OneToMany(mappedBy = "user")
-    private List<PostJpaEntity> posts;
 
     @PrePersist
     public void handleBeforeCreate() {
