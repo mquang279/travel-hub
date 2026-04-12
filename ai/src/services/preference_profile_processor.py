@@ -1,6 +1,7 @@
 from src.entity.preference import PreferenceProfileCommand, PreferenceResponse
 from src.repo.user_preferences import get_user_preferences, upsert_user_preferences
 from src.services.embedding import EmbeddingService
+from src.services.embedding_text_composer import EmbeddingTextComposer
 from src.services.preferences import normalize_interests, normalize_scalar, parse_interests
 
 
@@ -12,13 +13,14 @@ class PreferenceProfileProcessor:
     """
     def __init__(self, embedding_service: EmbeddingService):
         self.embedding_service = embedding_service
+        self.text_composer = EmbeddingTextComposer()
 
     async def upsert_profile(self, command: PreferenceProfileCommand, pool) -> PreferenceResponse:
         normalized_trip_type = normalize_scalar(command.trip_type)
         normalized_interests = normalize_interests(command.interests)
         normalized_destination = normalize_scalar(command.destination)
 
-        embedding_text = self._compose_embedding_text(
+        embedding_text = self.text_composer.for_preferences(
             trip_type=normalized_trip_type,
             interests=normalized_interests,
             destination=normalized_destination,
@@ -51,18 +53,6 @@ class PreferenceProfileProcessor:
             interests=parse_interests(row["interests"]),
             destination=row["destination"],
             updated_at=row["updated_at"],
-        )
-
-    @staticmethod
-    def _compose_embedding_text(
-        trip_type: str | None,
-        interests: list[str],
-        destination: str | None,
-    ) -> str:
-        return (
-            f"trip_type: {trip_type or ''}\n"
-            f"interests: {', '.join(interests)}\n"
-            f"destination: {destination or ''}"
         )
 
     @staticmethod

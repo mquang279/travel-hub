@@ -39,6 +39,16 @@ class EmbeddingServiceStub(object):
                 request_serializer=embedding__pb2.EmbeddingRequest.SerializeToString,
                 response_deserializer=embedding__pb2.EmbeddingResponse.FromString,
                 _registered_method=True)
+        self.GeneratePreferenceEmbedding = channel.unary_unary(
+                '/travelhub.embedding.v1.EmbeddingService/GeneratePreferenceEmbedding',
+                request_serializer=embedding__pb2.PreferenceEmbeddingRequest.SerializeToString,
+                response_deserializer=embedding__pb2.EmbeddingResponse.FromString,
+                _registered_method=True)
+        self.GeneratePostEmbedding = channel.unary_unary(
+                '/travelhub.embedding.v1.EmbeddingService/GeneratePostEmbedding',
+                request_serializer=embedding__pb2.PostEmbeddingRequest.SerializeToString,
+                response_deserializer=embedding__pb2.EmbeddingResponse.FromString,
+                _registered_method=True)
 
 
 class EmbeddingServiceServicer(object):
@@ -50,12 +60,34 @@ class EmbeddingServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GeneratePreferenceEmbedding(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GeneratePostEmbedding(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_EmbeddingServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'GenerateEmbedding': grpc.unary_unary_rpc_method_handler(
                     servicer.GenerateEmbedding,
                     request_deserializer=embedding__pb2.EmbeddingRequest.FromString,
+                    response_serializer=embedding__pb2.EmbeddingResponse.SerializeToString,
+            ),
+            'GeneratePreferenceEmbedding': grpc.unary_unary_rpc_method_handler(
+                    servicer.GeneratePreferenceEmbedding,
+                    request_deserializer=embedding__pb2.PreferenceEmbeddingRequest.FromString,
+                    response_serializer=embedding__pb2.EmbeddingResponse.SerializeToString,
+            ),
+            'GeneratePostEmbedding': grpc.unary_unary_rpc_method_handler(
+                    servicer.GeneratePostEmbedding,
+                    request_deserializer=embedding__pb2.PostEmbeddingRequest.FromString,
                     response_serializer=embedding__pb2.EmbeddingResponse.SerializeToString,
             ),
     }
@@ -85,6 +117,60 @@ class EmbeddingService(object):
             target,
             '/travelhub.embedding.v1.EmbeddingService/GenerateEmbedding',
             embedding__pb2.EmbeddingRequest.SerializeToString,
+            embedding__pb2.EmbeddingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GeneratePreferenceEmbedding(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/travelhub.embedding.v1.EmbeddingService/GeneratePreferenceEmbedding',
+            embedding__pb2.PreferenceEmbeddingRequest.SerializeToString,
+            embedding__pb2.EmbeddingResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GeneratePostEmbedding(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/travelhub.embedding.v1.EmbeddingService/GeneratePostEmbedding',
+            embedding__pb2.PostEmbeddingRequest.SerializeToString,
             embedding__pb2.EmbeddingResponse.FromString,
             options,
             channel_credentials,
