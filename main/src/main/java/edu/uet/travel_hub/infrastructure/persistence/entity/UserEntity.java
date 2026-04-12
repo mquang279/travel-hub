@@ -1,6 +1,7 @@
 package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import edu.uet.travel_hub.domain.enums.Role;
@@ -29,7 +30,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UserJpaEntity {
+public class UserEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -49,6 +50,22 @@ public class UserJpaEntity {
     private String bio;
 
     private Integer age;
+
+    private String phoneNumber;
+    private String avatarUrl;
+
+    private LocalDate dateOfBirth;
+    private String gender;
+    private String location;
+
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private int followersCount;
+
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private int followingCount;
+
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private int postsCount;
 
     @Column(length = 1000, unique = true)
     private String refreshToken;

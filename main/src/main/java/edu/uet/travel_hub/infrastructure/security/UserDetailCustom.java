@@ -11,7 +11,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserJpaEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Component("userDetailsService")
@@ -24,7 +24,7 @@ public class UserDetailCustom implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        UserJpaEntity user = userJpaRepository.findByEmail(email)
+        UserEntity user = userJpaRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User with email " + email + " not found."));
 
         List<GrantedAuthority> authorities = new ArrayList<>();

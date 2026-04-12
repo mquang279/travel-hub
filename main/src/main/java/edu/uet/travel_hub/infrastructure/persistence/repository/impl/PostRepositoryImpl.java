@@ -10,7 +10,7 @@ import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.PostJpaEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserJpaEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.mapper.PostPersistenceMapper;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.PostJpaRepository;
