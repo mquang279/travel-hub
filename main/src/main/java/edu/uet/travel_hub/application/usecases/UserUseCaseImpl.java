@@ -5,8 +5,8 @@ import edu.uet.travel_hub.application.port.in.UserUseCase;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
-import edu.uet.travel_hub.infrastructure.persistence.repository.JpaFollowRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.JpaUserRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.FollowJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,8 +18,8 @@ public class UserUseCaseImpl implements UserUseCase {
     // TODO: Sửa lại để phụ thuộc vào UserRepository & FollowRepository ở port/out
     // Tách thành các Service GetUserProfileService, UpdateProfileService implements các usecase ở port/in
     // mapToResponse thì ông cũng tách thành 1 cái mapper đặt ở application/mapper
-    private final JpaUserRepository userRepository;
-    private final JpaFollowRepository followRepository;
+    private final UserJpaRepository userRepository;
+    private final FollowJpaRepository followRepository;
 
     @Override
     public UserProfileResponse getProfile(Long currentUserId, Long targetUserId) {

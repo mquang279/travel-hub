@@ -1,7 +1,6 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 
 import java.util.Optional;
 

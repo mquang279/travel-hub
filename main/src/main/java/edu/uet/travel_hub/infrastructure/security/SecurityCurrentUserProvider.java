@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.infrastructure.security;
 
+import java.util.Optional;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -18,11 +20,22 @@ public class SecurityCurrentUserProvider implements CurrentUserProvider {
 
     @Override
     public Long getCurrentUserId() {
+        return getOptionalCurrentUserId()
+                .orElseThrow(() -> new IllegalStateException("Current user is not authenticated"));
+    }
+
+    @Override
+    public Optional<Long> getOptionalCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        // TODO: Xử lý Exception
+        if (authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getName())) {
+            return Optional.empty();
+        }
+
         String email = authentication.getName();
-        UserEntity user = userJpaRepository.findByEmail(email).get();
-        return user.getId();
+        UserEntity user = userJpaRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+        return Optional.of(user.getId());
     }
 
 }

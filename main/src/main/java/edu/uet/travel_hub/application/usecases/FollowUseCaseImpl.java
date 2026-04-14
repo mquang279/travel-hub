@@ -5,8 +5,8 @@ import edu.uet.travel_hub.application.port.in.FollowUseCase;
 import edu.uet.travel_hub.domain.dto.response.UserFollowResponse;
 import edu.uet.travel_hub.infrastructure.persistence.entity.FollowEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
-import edu.uet.travel_hub.infrastructure.persistence.repository.JpaFollowRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.JpaUserRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.FollowJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,8 +23,8 @@ public class FollowUseCaseImpl implements FollowUseCase {
     // Implement các interface đó: GetFollowersService, GetFollowingService,... đặt tại application/usecases
     // mapToResponse thì ông tách thành 1 cái mapper đặt ở application/mapper
     // Ở đây, ông không nên dùng trực tiếp FollowEntity, mà nên dùng thằng khác ở Domain
-    private final JpaFollowRepository followRepository;
-    private final JpaUserRepository userRepository;
+    private final FollowJpaRepository followRepository;
+    private final UserJpaRepository userRepository;
 
     @Override
     public Page<UserFollowResponse> getFollowers(Long currentUserId, Long targetUserId, Pageable pageable) {
