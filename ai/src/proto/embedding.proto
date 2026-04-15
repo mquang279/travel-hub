@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package travelhub.embedding.v1;
+
+service EmbeddingService {
+  rpc GenerateEmbedding(EmbeddingRequest) returns (EmbeddingResponse);
+  rpc GeneratePreferenceEmbedding(PreferenceEmbeddingRequest) returns (EmbeddingResponse);
+  rpc GeneratePostEmbedding(PostEmbeddingRequest) returns (EmbeddingResponse);
+}
+
+message EmbeddingRequest {
+  string text = 1;
+}
+
+message PreferenceEmbeddingRequest {
+  string trip_type = 1;
+  repeated string interests = 2;
+  string destination = 3;
+}
+
+message PostEmbeddingRequest {
+  string description = 1;
+  string location = 2;
+}
+
+message EmbeddingResponse {
+  repeated float values = 1;
+  int32 dimensions = 2;
+}

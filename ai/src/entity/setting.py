@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     google_api_keys: str = ""
     db_connection_string: str = "postgresql://postgres:postgres@localhost:5432/postgres"
     db_statement_cache_size: int = 0
+    grpc_port: int = 50051
 
 
 @lru_cache
