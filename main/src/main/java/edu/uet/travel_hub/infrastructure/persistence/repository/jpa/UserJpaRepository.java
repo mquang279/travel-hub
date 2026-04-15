@@ -1,6 +1,5 @@
-package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
+﻿package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 
 import java.util.Optional;
@@ -34,16 +33,6 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
     @Transactional
     @Query("update UserEntity u set u.followersCount = CASE WHEN u.followersCount > 0 THEN u.followersCount - 1 ELSE 0 END where u.id = :id")
     void decrementFollowers(@Param("id") Long id);
-
-    @Modifying
-    @Transactional
-    @Query("update UserEntity u set u.postsCount = u.postsCount + 1 where u.id = :id")
-    void incrementPosts(@Param("id") Long id);
-
-    @Modifying
-    @Transactional
-    @Query("update UserEntity u set u.postsCount = CASE WHEN u.postsCount > 0 THEN u.postsCount - 1 ELSE 0 END where u.id = :id")
-    void decrementPosts(@Param("id") Long id);
 
     Optional<UserEntity> findByEmail(String email);
 }

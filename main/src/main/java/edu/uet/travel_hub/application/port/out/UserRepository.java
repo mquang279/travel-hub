@@ -12,4 +12,12 @@ public interface UserRepository {
     Optional<UserModel> findByEmail(String email);
 
     void updateRefreshToken(Long id, String refreshToken);
+
+    void incrementFollowing(Long id);
+
+    void decrementFollowing(Long id);
+
+    void incrementFollowers(Long id);
+
+    void decrementFollowers(Long id);
 }
