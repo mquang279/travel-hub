@@ -33,19 +33,6 @@ services:
     networks:
       - app-network
 
-  minio-init:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c " until mc alias set local http://minio:9000 admin
-      password; do
-        sleep 2;
-      done; mc mb local/image || true; mc anonymous set download local/image;
-      exit 0; "
-    networks:
-      - app-network
-
 networks:
   app-network:
     driver: bridge
