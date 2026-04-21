@@ -64,6 +64,8 @@ public class SecurityConfig {
                                         "/api/places/*/reviews").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/admin/places")
                                 .hasAuthority(Role.ADMIN.getDescription())
+                                .requestMatchers(HttpMethod.GET, "/api/admin/places/*")
+                                .hasAuthority(Role.ADMIN.getDescription())
                                 .requestMatchers(HttpMethod.PUT, "/api/admin/places/*")
                                 .hasAuthority(Role.ADMIN.getDescription())
                                 .requestMatchers(HttpMethod.PUT, "/api/places/*/review").authenticated()

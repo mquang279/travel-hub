@@ -2,6 +2,7 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,6 +27,7 @@ public class ProvinceEntity {
 
     private String name;
 
+    @Column(columnDefinition = "TEXT")
     private String image;
 
     private Instant createdAt;

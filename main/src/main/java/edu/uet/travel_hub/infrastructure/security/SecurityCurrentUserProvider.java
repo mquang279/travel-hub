@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import edu.uet.travel_hub.application.exception.UnauthorizedException;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
@@ -21,7 +22,7 @@ public class SecurityCurrentUserProvider implements CurrentUserProvider {
     @Override
     public Long getCurrentUserId() {
         return getOptionalCurrentUserId()
-                .orElseThrow(() -> new IllegalStateException("Current user is not authenticated"));
+                .orElseThrow(() -> new UnauthorizedException("Current user is not authenticated"));
     }
 
     @Override
@@ -33,9 +34,8 @@ public class SecurityCurrentUserProvider implements CurrentUserProvider {
         }
 
         String email = authentication.getName();
-        UserEntity user = userJpaRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
-        return Optional.of(user.getId());
+        return userJpaRepository.findByEmail(email)
+                .map(UserEntity::getId);
     }
 
 }

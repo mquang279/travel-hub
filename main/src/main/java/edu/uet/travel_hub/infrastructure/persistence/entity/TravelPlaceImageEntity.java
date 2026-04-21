@@ -31,6 +31,7 @@ public class TravelPlaceImageEntity {
     @JoinColumn(name = "place_id", nullable = false)
     private TravelPlaceEntity place;
 
+    @Column(columnDefinition = "TEXT")
     private String imageUrl;
 
     @Column(name = "is_main")

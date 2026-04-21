@@ -3,6 +3,7 @@ package edu.uet.travel_hub.interfaces.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -23,6 +24,11 @@ public class AdminTravelPlaceController {
 
     public AdminTravelPlaceController(TravelPlaceService travelPlaceService) {
         this.travelPlaceService = travelPlaceService;
+    }
+
+    @GetMapping("/{placeId}")
+    public ResponseEntity<TravelPlaceDetailResponse> getPlaceDetailForAdmin(@PathVariable Long placeId) {
+        return ResponseEntity.ok(this.travelPlaceService.getPlaceDetailForAdmin(placeId));
     }
 
     @PostMapping("")

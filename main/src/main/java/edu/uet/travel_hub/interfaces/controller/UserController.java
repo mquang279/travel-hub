@@ -3,6 +3,7 @@ package edu.uet.travel_hub.interfaces.controller;
 import edu.uet.travel_hub.application.port.in.GetUserProfileUseCase;
 import edu.uet.travel_hub.application.port.in.UpdateProfileUseCase;
 import edu.uet.travel_hub.application.port.in.UploadAvatarUseCase;
+import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,22 +26,24 @@ public class UserController {
 	private final GetUserProfileUseCase getUserProfileUseCase;
 	private final UpdateProfileUseCase updateProfileUseCase;
 	private final UploadAvatarUseCase uploadAvatarUseCase;
-
-	private static final Long MOCK_CURRENT_USER_ID = 1L;
+	private final CurrentUserProvider currentUserProvider;
 
 	@GetMapping("/me")
 	public ResponseEntity<UserProfileResponse> getMyProfile() {
-		return ResponseEntity.ok(getUserProfileUseCase.getProfile(MOCK_CURRENT_USER_ID, MOCK_CURRENT_USER_ID));
+		Long currentUserId = currentUserProvider.getCurrentUserId();
+		return ResponseEntity.ok(getUserProfileUseCase.getProfile(currentUserId, currentUserId));
 	}
 
 	@GetMapping("/{userId}")
 	public ResponseEntity<UserProfileResponse> getProfile(@PathVariable Long userId) {
-		return ResponseEntity.ok(getUserProfileUseCase.getProfile(MOCK_CURRENT_USER_ID, userId));
+		Long currentUserId = currentUserProvider.getOptionalCurrentUserId().orElse(null);
+		return ResponseEntity.ok(getUserProfileUseCase.getProfile(currentUserId, userId));
 	}
 
 	@PutMapping("/me")
 	public ResponseEntity<UserProfileResponse> updateMyProfile(@RequestBody UpdateProfileRequest request) {
-		return ResponseEntity.ok(updateProfileUseCase.updateProfile(MOCK_CURRENT_USER_ID, request));
+		Long currentUserId = currentUserProvider.getCurrentUserId();
+		return ResponseEntity.ok(updateProfileUseCase.updateProfile(currentUserId, request));
 	}
 
 	@PutMapping("/{userId}")
@@ -52,7 +55,8 @@ public class UserController {
 
 	@PostMapping("/me/avatar")
 	public ResponseEntity<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
-		String avatarUrl = uploadAvatarUseCase.uploadAvatar(MOCK_CURRENT_USER_ID, file);
+		Long currentUserId = currentUserProvider.getCurrentUserId();
+		String avatarUrl = uploadAvatarUseCase.uploadAvatar(currentUserId, file);
 		return ResponseEntity.ok(avatarUrl);
 	}
 }

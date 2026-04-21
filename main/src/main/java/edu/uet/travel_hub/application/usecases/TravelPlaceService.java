@@ -82,8 +82,7 @@ public class TravelPlaceService {
 
     @Transactional
     public TravelPlaceDetailResponse getPlaceDetail(Long placeId, Optional<Long> currentUserId) {
-        TravelPlaceEntity place = this.travelPlaceJpaRepository.findById(placeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Travel place not found"));
+        TravelPlaceEntity place = findPlaceById(placeId);
 
         this.travelPlaceJpaRepository.incrementViews(placeId);
         place.setViews((place.getViews() == null ? 0 : place.getViews()) + 1);
@@ -97,6 +96,11 @@ public class TravelPlaceService {
         }
 
         return buildPlaceDetailResponse(place, currentUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public TravelPlaceDetailResponse getPlaceDetailForAdmin(Long placeId) {
+        return buildPlaceDetailResponse(findPlaceById(placeId), Optional.empty());
     }
 
     @Transactional
@@ -301,6 +305,11 @@ public class TravelPlaceService {
             imageByPlaceId.putIfAbsent(image.getPlace().getId(), image.getImageUrl());
         }
         return imageByPlaceId;
+    }
+
+    private TravelPlaceEntity findPlaceById(Long placeId) {
+        return this.travelPlaceJpaRepository.findById(placeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Travel place not found"));
     }
 
     private void ensurePlaceExists(Long placeId) {
