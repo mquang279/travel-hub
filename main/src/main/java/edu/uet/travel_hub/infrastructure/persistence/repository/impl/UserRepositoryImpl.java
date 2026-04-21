@@ -39,8 +39,29 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void updateRefreshToken(Long id, String refreshToken) {
-        UserEntity entity = this.userJpaRepository.findById(id).get();
+        UserEntity entity = this.userJpaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
         entity.setRefreshToken(refreshToken);
         this.userJpaRepository.save(entity);
+    }
+
+    @Override
+    public void incrementFollowing(Long id) {
+        this.userJpaRepository.incrementFollowing(id);
+    }
+
+    @Override
+    public void decrementFollowing(Long id) {
+        this.userJpaRepository.decrementFollowing(id);
+    }
+
+    @Override
+    public void incrementFollowers(Long id) {
+        this.userJpaRepository.incrementFollowers(id);
+    }
+
+    @Override
+    public void decrementFollowers(Long id) {
+        this.userJpaRepository.decrementFollowers(id);
     }
 }
