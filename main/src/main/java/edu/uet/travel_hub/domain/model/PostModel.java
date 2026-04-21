@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.domain.model;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +16,7 @@ public class PostModel {
 
     private String description;
 
-    private String imageUrl;
+    private List<String> imageUrls;
 
     private String location;
 

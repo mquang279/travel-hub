@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.application.dto.request;
 
-public record CreatePostRequest(String description, String imageUrl, String location) {
+import java.util.List;
 
+public record CreatePostRequest(String description, List<String> imageUrls, String location) {
+    
 }

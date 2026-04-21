@@ -9,45 +9,36 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
-@Table(name = "posts")
 @Data
 @AllArgsConstructor
-@Builder
 @NoArgsConstructor
-public class PostJpaEntity {
+@Entity
+@Table(name = "likes", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "user_id", "post_id" })
+})
+public class LikeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private String description;
-
-    private String imageUrl;
-
-    private String location;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
-    private Instant createdAt;
+    @ManyToOne
+    @JoinColumn(name = "post_id", nullable = false)
+    private PostEntity post;
 
-    private Instant updatedAt;
+    private Instant createdAt;
 
     @PrePersist
     public void handleBeforeCreate() {
         this.createdAt = Instant.now();
-    }
-
-    @PreUpdate
-    public void handleBeforeUpdate() {
-        this.updatedAt = Instant.now();
     }
 }

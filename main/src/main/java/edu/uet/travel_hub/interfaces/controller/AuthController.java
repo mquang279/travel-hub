@@ -3,8 +3,6 @@ package edu.uet.travel_hub.interfaces.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.nimbusds.jose.proc.SecurityContext;
-
 import edu.uet.travel_hub.application.dto.request.LoginRequest;
 import edu.uet.travel_hub.application.dto.request.RegisterRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;

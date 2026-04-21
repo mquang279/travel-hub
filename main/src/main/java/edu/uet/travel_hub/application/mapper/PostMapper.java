@@ -20,7 +20,7 @@ public class PostMapper {
         UserModel userModel = this.userRepository.findById(model.getUserId()).get();
         PostResponse response = PostResponse.builder()
                 .description(model.getDescription())
-                .imageUrl(model.getImageUrl())
+                .imageUrls(model.getImageUrls())
                 .id(model.getId())
                 .owner(toUserResponse(userModel)).build();
         return response;

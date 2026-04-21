@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
-import edu.uet.travel_hub.infrastructure.persistence.entity.PostJpaEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.PostEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.mapper.PostPersistenceMapper;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
@@ -35,8 +35,8 @@ public class PostRepositoryImpl implements PostRepository {
         }
 
         post.setUserId(userId);
-        PostJpaEntity entity = mapper.toEntity(post);
-        PostJpaEntity savedEntity = this.postJpaRepository.save(entity);
+        PostEntity entity = mapper.toEntity(post);
+        PostEntity savedEntity = this.postJpaRepository.save(entity);
         return mapper.toDomain(savedEntity);
     }
 
@@ -48,7 +48,7 @@ public class PostRepositoryImpl implements PostRepository {
     @Override
     public PaginationResponse<PostModel> getAll(int pageNumber, int pageSize) {
         PageRequest request = PageRequest.of(pageNumber, pageSize);
-        Page<PostJpaEntity> posts = this.postJpaRepository.findAll(request);
+        Page<PostEntity> posts = this.postJpaRepository.findAll(request);
         PaginationResponse<PostModel> response = new PaginationResponse<PostModel>(
                 posts.getNumber(),
                 posts.getSize(),
