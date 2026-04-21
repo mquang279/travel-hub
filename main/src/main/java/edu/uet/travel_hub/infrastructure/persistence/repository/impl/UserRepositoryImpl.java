@@ -9,6 +9,7 @@ import edu.uet.travel_hub.domain.model.UserModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.mapper.UserPersistenceMapper;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
+import jakarta.transaction.Transactional;
 
 @Repository
 public class UserRepositoryImpl implements UserRepository {
@@ -21,6 +22,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    @Transactional
     public UserModel save(UserModel user) {
         UserEntity entity = mapper.toEntity(user);
         UserEntity saved = this.userJpaRepository.save(entity);
@@ -38,6 +40,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    @Transactional
     public void updateRefreshToken(Long id, String refreshToken) {
         UserEntity entity = this.userJpaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
@@ -46,21 +49,25 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    @Transactional
     public void incrementFollowing(Long id) {
         this.userJpaRepository.incrementFollowing(id);
     }
 
     @Override
+    @Transactional
     public void decrementFollowing(Long id) {
         this.userJpaRepository.decrementFollowing(id);
     }
 
     @Override
+    @Transactional
     public void incrementFollowers(Long id) {
         this.userJpaRepository.incrementFollowers(id);
     }
 
     @Override
+    @Transactional
     public void decrementFollowers(Long id) {
         this.userJpaRepository.decrementFollowers(id);
     }

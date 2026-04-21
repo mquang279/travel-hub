@@ -48,6 +48,8 @@ public class PostEntity {
 
     private int likeCount;
 
+    private int commentCount;
+
     private Instant createdAt;
 
     private Instant updatedAt;

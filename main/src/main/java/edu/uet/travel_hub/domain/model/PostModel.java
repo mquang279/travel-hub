@@ -20,5 +20,7 @@ public class PostModel {
 
     private String location;
 
+    private int likeCount;
+
     private Long userId;
 }

@@ -23,6 +23,7 @@ public class PostPersistenceMapper {
                 .description(model.getDescription())
                 .imageUrls(model.getImageUrls())
                 .location(model.getLocation())
+                .likeCount(model.getLikeCount())
                 .user(this.userJpaRepository.findById(model.getUserId())
                         .orElseThrow(() -> new IllegalArgumentException(
                                 "User not found with id: " + model.getUserId())))
@@ -34,6 +35,7 @@ public class PostPersistenceMapper {
                 .description(entity.getDescription())
                 .imageUrls(entity.getImageUrls())
                 .id(entity.getId())
+                .likeCount(entity.getLikeCount())
                 .location(entity.getLocation())
                 .userId(entity.getUser().getId()).build();
     }
