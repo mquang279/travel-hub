@@ -42,6 +42,8 @@ public class PostEntity {
     @OneToMany(mappedBy = "post")
     private List<LikeEntity> likes;
 
+    private int likeCount;
+
     private Instant createdAt;
 
     private Instant updatedAt;
