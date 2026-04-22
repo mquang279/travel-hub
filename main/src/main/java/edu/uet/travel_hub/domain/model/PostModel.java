@@ -21,6 +21,8 @@ public class PostModel {
 
     private String location;
 
+    private Long travelPlaceId;
+
     private int likeCount;
 
     private int commentCount;

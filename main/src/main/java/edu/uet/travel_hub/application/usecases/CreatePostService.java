@@ -25,6 +25,7 @@ public class CreatePostService implements CreatePostUseCase {
         PostModel post = PostModel.builder()
                 .description(request.description())
                 .imageUrls(request.imageUrls())
+                .travelPlaceId(request.travelPlaceId())
                 .userId(userId)
                 .build();
         return this.postRepository.save(userId, post);

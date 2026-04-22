@@ -34,11 +34,13 @@ public class PostEntity {
 
     private List<String> imageUrls;
 
-    private String location;
-
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
+
+    @ManyToOne
+    @JoinColumn(name = "travel_place_id")
+    private TravelPlaceEntity travelPlace;
 
     @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
     private List<LikeEntity> likes;

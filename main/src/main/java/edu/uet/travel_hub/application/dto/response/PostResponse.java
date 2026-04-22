@@ -6,7 +6,16 @@ import java.util.List;
 import lombok.Builder;
 
 @Builder
-public record PostResponse(Long id, String description, List<String> imageUrls, UserResponse owner, int likeCount,
-        int commentCount, boolean isLiked, Instant createdAt, Instant updatedAt) {
-
+public record PostResponse(
+                Long id,
+                String description,
+                List<String> imageUrls,
+                UserResponse owner,
+                int likeCount,
+                int commentCount,
+                boolean isLiked,
+                Long travelPlaceId,
+                String location,
+                Instant createdAt,
+                Instant updatedAt) {
 }

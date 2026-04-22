@@ -27,6 +27,8 @@ public class PostMapper {
                 .likeCount(model.getLikeCount())
                 .commentCount(model.getCommentCount())
                 .isLiked(model.isLiked())
+                .travelPlaceId(model.getTravelPlaceId())
+                .location(model.getLocation())
                 .owner(toUserResponse(userModel)).build();
         return response;
     }
