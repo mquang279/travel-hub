@@ -44,4 +44,9 @@ public class LikeRepositoryImpl implements LikeRepository {
         LikeEntity likeEntity = this.likeJpaRepository.findByUserIdAndPostId(userId, postId).get();
         this.likeJpaRepository.delete(likeEntity);
     }
+
+    @Override
+    public boolean exists(Long userId, Long postId) {
+        return this.likeJpaRepository.existsByUserIdAndPostId(userId, postId);
+    }
 }

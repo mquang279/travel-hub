@@ -6,4 +6,6 @@ public interface LikeRepository {
     LikeModel save(Long userId, Long postId);
 
     void delete(Long userId, Long postId);
+
+    boolean exists(Long userId, Long postId);
 }

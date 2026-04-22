@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 import edu.uet.travel_hub.application.port.out.UserRepository;
+import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.domain.model.UserModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.mapper.UserPersistenceMapper;
@@ -70,5 +71,18 @@ public class UserRepositoryImpl implements UserRepository {
     @Transactional
     public void decrementFollowers(Long id) {
         this.userJpaRepository.decrementFollowers(id);
+    }
+
+    @Override
+    public UserModel register(String email, String username, String password, Role role) {
+        UserEntity userEntity = UserEntity
+                .builder()
+                .email(email)
+                .username(username)
+                .hashPassword(password)
+                .role(role)
+                .build();
+        UserEntity saved = this.userJpaRepository.save(userEntity);
+        return this.mapper.toDomain(saved);
     }
 }

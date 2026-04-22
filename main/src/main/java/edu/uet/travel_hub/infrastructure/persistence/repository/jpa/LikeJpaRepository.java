@@ -10,4 +10,6 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.LikeEntity;
 @Repository
 public interface LikeJpaRepository extends JpaRepository<LikeEntity, Long> {
     Optional<LikeEntity> findByUserIdAndPostId(Long userId, Long postId);
+
+    boolean existsByUserIdAndPostId(Long userId, Long postId);
 }
