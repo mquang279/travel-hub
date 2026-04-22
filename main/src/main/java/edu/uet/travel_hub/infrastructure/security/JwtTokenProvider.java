@@ -2,6 +2,7 @@ package edu.uet.travel_hub.infrastructure.security;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -56,6 +57,7 @@ public class JwtTokenProvider implements TokenProvider {
                 .expiresAt(validity)
                 .subject(user.getEmail())
                 .claim("user", userClaims)
+                .claim("authorities", List.of(user.getRole().getDescription()))
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
@@ -74,6 +76,7 @@ public class JwtTokenProvider implements TokenProvider {
                 .expiresAt(validity)
                 .subject(user.getEmail())
                 .claim("user", userClaims)
+                .claim("authorities", List.of(user.getRole().getDescription()))
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
