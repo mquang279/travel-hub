@@ -6,6 +6,8 @@ import java.util.List;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -15,15 +17,20 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "provinces")
+@Table(name = "districts")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProvinceEntity {
+public class DistrictEntity {
     @Id
     private Long id;
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "province_id", nullable = false)
+    private ProvinceEntity province;
+
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false)
@@ -32,13 +39,8 @@ public class ProvinceEntity {
     @Column(nullable = false)
     private String divisionType;
 
-    private Integer phoneCode;
-
-    @Column(columnDefinition = "TEXT")
-    private String image;
-
-    @OneToMany(mappedBy = "province")
-    private List<DistrictEntity> districts;
+    @OneToMany(mappedBy = "district")
+    private List<WardEntity> wards;
 
     private Instant createdAt;
 

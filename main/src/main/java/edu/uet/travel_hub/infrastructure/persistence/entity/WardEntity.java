@@ -1,12 +1,12 @@
 package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
-import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -15,15 +15,24 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "provinces")
+@Table(name = "wards")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProvinceEntity {
+public class WardEntity {
     @Id
     private Long id;
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "district_id", nullable = false)
+    private DistrictEntity district;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "province_id", nullable = false)
+    private ProvinceEntity province;
+
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false)
@@ -31,14 +40,6 @@ public class ProvinceEntity {
 
     @Column(nullable = false)
     private String divisionType;
-
-    private Integer phoneCode;
-
-    @Column(columnDefinition = "TEXT")
-    private String image;
-
-    @OneToMany(mappedBy = "province")
-    private List<DistrictEntity> districts;
 
     private Instant createdAt;
 
