@@ -57,7 +57,7 @@ public class JwtTokenProvider implements TokenProvider {
                 .expiresAt(validity)
                 .subject(user.getEmail())
                 .claim("user", userClaims)
-                .claim("authorities", List.of(user.getRole().getDescription()))
+                // .claim("authorities", List.of(user.getRole().getDescription()))
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
@@ -76,7 +76,7 @@ public class JwtTokenProvider implements TokenProvider {
                 .expiresAt(validity)
                 .subject(user.getEmail())
                 .claim("user", userClaims)
-                .claim("authorities", List.of(user.getRole().getDescription()))
+                // .claim("authorities", List.of(user.getRole().getDescription()))
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
