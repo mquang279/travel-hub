@@ -10,25 +10,22 @@ import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.PostEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.mapper.PostPersistenceMapper;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.PostJpaRepository;
+import jakarta.transaction.Transactional;
 
 @Component
 public class PostRepositoryImpl implements PostRepository {
     private final PostJpaRepository postJpaRepository;
-    private final UserJpaRepository userJpaRepository;
     private final PostPersistenceMapper mapper;
 
-    public PostRepositoryImpl(PostJpaRepository postJpaRepository, UserJpaRepository userJpaRepository,
-            PostPersistenceMapper mapper) {
+    public PostRepositoryImpl(PostJpaRepository postJpaRepository, PostPersistenceMapper mapper) {
         this.postJpaRepository = postJpaRepository;
-        this.userJpaRepository = userJpaRepository;
         this.mapper = mapper;
     }
 
     @Override
+    @Transactional
     public PostModel save(Long userId, PostModel post) {
         if (userId == null) {
             throw new IllegalArgumentException("Current user id must not be null");
@@ -56,6 +53,24 @@ public class PostRepositoryImpl implements PostRepository {
                 posts.getTotalElements(),
                 posts.getContent().stream().map(mapper::toDomain).toList());
         return response;
+    }
+
+    @Override
+    @Transactional
+    public void increaseLikeCount(Long id) {
+        this.postJpaRepository.incrementLike(id);
+    }
+
+    @Override
+    @Transactional
+    public void decreaseLikeCount(Long id) {
+        this.postJpaRepository.decrementLike(id);
+    }
+
+    @Override
+    public int getLikeCount(Long id) {
+        PostEntity postEntity = this.postJpaRepository.findById(id).get();
+        return postEntity.getLikeCount();
     }
 
 }

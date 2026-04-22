@@ -21,7 +21,12 @@ public class PostMapper {
         PostResponse response = PostResponse.builder()
                 .description(model.getDescription())
                 .imageUrls(model.getImageUrls())
+                .createdAt(model.getCreatedAt())
+                .updatedAt(model.getUpdatedAt())
                 .id(model.getId())
+                .likeCount(model.getLikeCount())
+                .commentCount(model.getCommentCount())
+                .isLiked(model.isLiked())
                 .owner(toUserResponse(userModel)).build();
         return response;
     }

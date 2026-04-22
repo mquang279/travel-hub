@@ -1,33 +1,24 @@
 package edu.uet.travel_hub.domain.model;
 
 import java.time.Instant;
-import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Builder
 @Data
 @AllArgsConstructor
+@Builder
 @NoArgsConstructor
-public class PostModel {
+public class CommentModel {
     private Long id;
 
-    private String description;
+    private String content;
 
-    private List<String> imageUrls;
+    private UserModel owner;
 
-    private String location;
-
-    private int likeCount;
-
-    private int commentCount;
-
-    private boolean isLiked;
-
-    private Long userId;
+    private PostModel post;
 
     private Instant createdAt;
 

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -39,8 +40,15 @@ public class PostEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
-    @OneToMany(mappedBy = "post")
+    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
     private List<LikeEntity> likes;
+
+    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
+    private List<CommentEntity> comments;
+
+    private int likeCount;
+
+    private int commentCount;
 
     private Instant createdAt;
 
