@@ -6,6 +6,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -23,6 +24,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.util.Base64;
 
+import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
 
 @Configuration
@@ -49,10 +51,28 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         (authz) -> authz
                                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                                .requestMatchers(
-                                    "/api/auth/logout").authenticated()
-                                .anyRequest().permitAll())
-                .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults())
+                                .requestMatchers("/api/auth/logout").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/posts").authenticated()
+                                .requestMatchers(HttpMethod.PUT, "/api/posts/*").authenticated()
+                                .requestMatchers("/api/users/me", "/api/users/me/**").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/users/*/followers").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/users/*/following").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/users/*/follow").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/places", "/api/places/*",
+                                        "/api/places/*/reviews").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/admin/places")
+                                .hasAuthority(Role.ADMIN.getDescription())
+                                .requestMatchers(HttpMethod.GET, "/api/admin/places/*")
+                                .hasAuthority(Role.ADMIN.getDescription())
+                                .requestMatchers(HttpMethod.PUT, "/api/admin/places/*")
+                                .hasAuthority(Role.ADMIN.getDescription())
+                                .requestMatchers(HttpMethod.PUT, "/api/places/*/review").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/users/me/place-view-history").authenticated()
+                                .anyRequest().authenticated())
+                .oauth2ResourceServer((oauth2) -> oauth2.jwt(
+                        jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
