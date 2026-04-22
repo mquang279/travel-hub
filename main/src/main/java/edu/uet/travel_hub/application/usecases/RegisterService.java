@@ -28,11 +28,10 @@ public class RegisterService implements RegisterUseCase {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         String hashPassword = encoder.encode(request.password());
-        UserModel user = new UserModel(request.email(), request.username(), hashPassword, Role.USER);
-        UserModel savedUser = this.userRepository.save(user);
-        String accessToken = this.tokenProvider.generateAccessToken(savedUser);
-        String refreshToken = this.tokenProvider.generateRefreshToken(savedUser);
-        AuthResponse response = new AuthResponse(accessToken, refreshToken, savedUser.getId());
+        UserModel user = this.userRepository.register(request.email(), request.username(), hashPassword, Role.USER);
+        String accessToken = this.tokenProvider.generateAccessToken(user);
+        String refreshToken = this.tokenProvider.generateRefreshToken(user);
+        AuthResponse response = new AuthResponse(accessToken, refreshToken, user.getId());
         return response;
     }
 }
