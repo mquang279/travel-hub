@@ -1,5 +1,5 @@
 class EmbeddingTextComposer:
-    """Pure composition logic, reusable across HTTP/gRPC/pubsub transports."""
+    """Pure composition logic, reusable across HTTP or background transports."""
 
     @staticmethod
     def for_preferences(

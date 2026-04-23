@@ -8,8 +8,8 @@ from src.services.preferences import normalize_interests, normalize_scalar, pars
 class PreferenceProfileProcessor:
     """Reusable application logic for preference embedding + persistence.
 
-    This processor is transport-agnostic: HTTP handlers, gRPC handlers, or future
-    Redis pub/sub consumers can all call the same methods.
+    This processor is transport-agnostic: HTTP handlers or future Redis pub/sub
+    consumers can all call the same methods.
     """
     def __init__(self, embedding_service: EmbeddingService):
         self.embedding_service = embedding_service
