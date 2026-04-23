@@ -7,10 +7,10 @@ import json
 
 from src.entity.embedding import (
     EmbeddingRequest,
-    EmbeddingResponse,
-    PostEmbeddingRequest,
+    EmbeddingResponse as VectorEmbeddingResponse,
     PreferenceEmbeddingRequest,
 )
+from src.entity.content_embedding import PostEmbeddingResponse, PostEmbeddingUpsertRequest
 from src.entity.preference import (
     PreferenceProfileCommand,
     PreferenceResponse,
@@ -18,6 +18,7 @@ from src.entity.preference import (
 )
 from src.entity.setting import get_settings
 from src.services.embedding import EmbeddingService
+from src.services.content_embedding_processor import ContentEmbeddingProcessor
 from src.services.embedding_text_composer import EmbeddingTextComposer
 from src.services.preference_profile_processor import PreferenceProfileProcessor
 from src.services import itinerary
@@ -55,6 +56,22 @@ async def init_db(pool):
 
             ALTER TABLE user_preferences
             ADD COLUMN IF NOT EXISTS embedding vector(128);
+
+            CREATE TABLE IF NOT EXISTS post_embeddings (
+                post_id BIGINT PRIMARY KEY,
+                travel_place_id BIGINT,
+                content JSONB NOT NULL DEFAULT '{}'::jsonb,
+                embedding vector(128) NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+
+            CREATE TABLE IF NOT EXISTS travel_place_embeddings (
+                travel_place_id BIGINT PRIMARY KEY,
+                province_id BIGINT,
+                content JSONB NOT NULL DEFAULT '{}'::jsonb,
+                embedding vector(128) NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
             """
         )
 
@@ -73,6 +90,9 @@ async def lifespan(app: FastAPI):
     app.state.itinerary_service = itinerary.new_itinerary_service()
     app.state.embedding_service = EmbeddingService()
     app.state.embedding_text_composer = EmbeddingTextComposer()
+    app.state.content_embedding_processor = ContentEmbeddingProcessor(
+        embedding_service=app.state.embedding_service
+    )
     app.state.preference_profile_processor = PreferenceProfileProcessor(
         embedding_service=app.state.embedding_service
     )
@@ -95,13 +115,13 @@ def read_item(item_id: int, q: str | None = None):
     return {"item_id": item_id, "q": q}
 
 
-@app.post("/api/embeddings", response_model=EmbeddingResponse)
+@app.post("/api/embeddings", response_model=VectorEmbeddingResponse)
 def generate_embedding(payload: EmbeddingRequest, request: Request):
     values = request.app.state.embedding_service.generate(payload.text)
-    return EmbeddingResponse(values=values, dimensions=len(values))
+    return VectorEmbeddingResponse(values=values, dimensions=len(values))
 
 
-@app.post("/api/embeddings/preferences", response_model=EmbeddingResponse)
+@app.post("/api/embeddings/preferences", response_model=VectorEmbeddingResponse)
 def generate_preference_embedding(
     payload: PreferenceEmbeddingRequest,
     request: Request,
@@ -112,17 +132,36 @@ def generate_preference_embedding(
         destination=payload.destination,
     )
     values = request.app.state.embedding_service.generate(text)
-    return EmbeddingResponse(values=values, dimensions=len(values))
+    return VectorEmbeddingResponse(values=values, dimensions=len(values))
 
 
-@app.post("/api/embeddings/posts", response_model=EmbeddingResponse)
-def generate_post_embedding(payload: PostEmbeddingRequest, request: Request):
+@app.post("/api/embeddings/posts", response_model=VectorEmbeddingResponse)
+def generate_post_embedding(payload: PostEmbeddingUpsertRequest, request: Request):
     text = request.app.state.embedding_text_composer.for_post(
         description=payload.description,
-        location=payload.location,
+        travel_place_name=payload.travel_place_name,
+        travel_place_description=payload.travel_place_description,
+        province_name=payload.province_name,
+        opening_time=payload.opening_time,
+        lat=payload.lat,
+        lon=payload.lon,
     )
     values = request.app.state.embedding_service.generate(text)
-    return EmbeddingResponse(values=values, dimensions=len(values))
+    return VectorEmbeddingResponse(values=values, dimensions=len(values))
+
+
+@app.put("/api/posts/{post_id}/embedding", response_model=PostEmbeddingResponse)
+async def upsert_post_embedding(
+    post_id: int,
+    payload: PostEmbeddingUpsertRequest,
+    request: Request,
+):
+    pg_pool = request.app.state.pg_pool
+    return await request.app.state.content_embedding_processor.upsert_post_embedding(
+        post_id=post_id,
+        payload=payload,
+        pool=pg_pool,
+    )
 
 
 @app.put("/api/users/{user_id}/preferences", response_model=PreferenceResponse)
