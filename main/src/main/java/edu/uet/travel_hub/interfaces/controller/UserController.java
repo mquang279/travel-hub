@@ -4,10 +4,14 @@ import edu.uet.travel_hub.application.port.in.GetUserProfileUseCase;
 import edu.uet.travel_hub.application.port.in.UpdateProfileUseCase;
 import edu.uet.travel_hub.application.port.in.UploadAvatarUseCase;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
+import edu.uet.travel_hub.application.usecases.UserPreferenceService;
+import edu.uet.travel_hub.domain.dto.request.PreferenceUpdateRequest;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
+import edu.uet.travel_hub.domain.dto.response.PreferenceResponse;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +30,7 @@ public class UserController {
 	private final GetUserProfileUseCase getUserProfileUseCase;
 	private final UpdateProfileUseCase updateProfileUseCase;
 	private final UploadAvatarUseCase uploadAvatarUseCase;
+	private final UserPreferenceService userPreferenceService;
 	private final CurrentUserProvider currentUserProvider;
 
 	@GetMapping("/me")
@@ -53,10 +58,32 @@ public class UserController {
 		return ResponseEntity.ok(updateProfileUseCase.updateProfile(userId, request));
 	}
 
+	@GetMapping("/{userId}/preferences")
+	public ResponseEntity<PreferenceResponse> getPreferences(@PathVariable Long userId) {
+		Long currentUserId = currentUserProvider.getCurrentUserId();
+		ensureCurrentUser(currentUserId, userId);
+		return ResponseEntity.ok(userPreferenceService.getPreferences(userId));
+	}
+
+	@PutMapping("/{userId}/preferences")
+	public ResponseEntity<PreferenceResponse> updatePreferences(
+			@PathVariable Long userId,
+			@RequestBody PreferenceUpdateRequest request) {
+		Long currentUserId = currentUserProvider.getCurrentUserId();
+		ensureCurrentUser(currentUserId, userId);
+		return ResponseEntity.ok(userPreferenceService.updatePreferences(userId, request));
+	}
+
 	@PostMapping("/me/avatar")
 	public ResponseEntity<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
 		Long currentUserId = currentUserProvider.getCurrentUserId();
 		String avatarUrl = uploadAvatarUseCase.uploadAvatar(currentUserId, file);
 		return ResponseEntity.ok(avatarUrl);
+	}
+
+	private void ensureCurrentUser(Long currentUserId, Long userId) {
+		if (!currentUserId.equals(userId)) {
+			throw new AccessDeniedException("Cannot access preferences of another user");
+		}
 	}
 }

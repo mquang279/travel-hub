@@ -31,7 +31,11 @@ public class RegisterService implements RegisterUseCase {
         UserModel user = this.userRepository.register(request.email(), request.username(), hashPassword, Role.USER);
         String accessToken = this.tokenProvider.generateAccessToken(user);
         String refreshToken = this.tokenProvider.generateRefreshToken(user);
-        AuthResponse response = new AuthResponse(accessToken, refreshToken, user.getId());
+        AuthResponse response = new AuthResponse(
+                accessToken,
+                refreshToken,
+                user.getId(),
+                user.isOnboarded());
         return response;
     }
 }

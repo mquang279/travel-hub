@@ -34,7 +34,11 @@ public class LoginService implements LoginUseCase {
         String refreshToken = this.tokenProvider.generateRefreshToken(userModel);
         this.userRepository.updateRefreshToken(userModel.getId(), refreshToken);
 
-        AuthResponse response = new AuthResponse(accessToken, refreshToken, userModel.getId());
+        AuthResponse response = new AuthResponse(
+                accessToken,
+                refreshToken,
+                userModel.getId(),
+                userModel.isOnboarded());
         return response;
     }
 }

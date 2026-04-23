@@ -60,6 +60,7 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.GET, "/api/users/*/followers").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/users/*/following").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/users/*/follow").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/places/recommendations").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/places", "/api/places/*",
                                         "/api/places/*/reviews").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/admin/places")

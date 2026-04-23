@@ -41,6 +41,19 @@ public class TravelPlaceController {
         return ResponseEntity.ok(this.travelPlaceService.getPlaces(page, pageSize, provinceId, keyword));
     }
 
+    @GetMapping("/recommendations")
+    public ResponseEntity<PaginationResponse<TravelPlaceListItemResponse>> getRecommendations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) Long provinceId) {
+        return ResponseEntity.ok(
+                this.travelPlaceService.getRecommendedPlaces(
+                        this.currentUserProvider.getCurrentUserId(),
+                        page,
+                        pageSize,
+                        provinceId));
+    }
+
     @GetMapping("/{placeId}")
     public ResponseEntity<TravelPlaceDetailResponse> getPlaceDetail(@PathVariable Long placeId) {
         return ResponseEntity.ok(this.travelPlaceService.getPlaceDetail(placeId, this.currentUserProvider.getOptionalCurrentUserId()));

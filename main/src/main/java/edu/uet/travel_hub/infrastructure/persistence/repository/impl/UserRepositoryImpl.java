@@ -1,5 +1,6 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.impl;
 
+import java.util.ArrayList;
 import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
@@ -25,7 +26,28 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     @Transactional
     public UserModel save(UserModel user) {
-        UserEntity entity = mapper.toEntity(user);
+        UserEntity entity = user.getId() == null
+                ? mapper.toEntity(user)
+                : this.userJpaRepository.findById(user.getId())
+                        .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + user.getId()));
+
+        entity.setUsername(user.getUsername());
+        entity.setName(user.getName());
+        entity.setEmail(user.getEmail());
+        entity.setBio(user.getBio());
+        entity.setPhoneNumber(user.getPhoneNumber());
+        entity.setAvatarUrl(user.getAvatarUrl());
+        entity.setDateOfBirth(user.getDateOfBirth());
+        entity.setGender(user.getGender());
+        entity.setLocation(user.getLocation());
+        entity.setTripType(user.getTripType());
+        entity.setInterests(user.getInterests() == null ? new ArrayList<>() : new ArrayList<>(user.getInterests()));
+        entity.setDestination(user.getDestination());
+        entity.setOnboarded(user.isOnboarded());
+        entity.setFollowersCount(user.getFollowersCount());
+        entity.setFollowingCount(user.getFollowingCount());
+        entity.setPostsCount(user.getPostsCount());
+
         UserEntity saved = this.userJpaRepository.save(entity);
         return mapper.toDomain(saved);
     }

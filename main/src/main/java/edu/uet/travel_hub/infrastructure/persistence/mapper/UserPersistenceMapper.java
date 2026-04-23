@@ -1,5 +1,8 @@
 package edu.uet.travel_hub.infrastructure.persistence.mapper;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import edu.uet.travel_hub.domain.model.UserModel;
@@ -19,6 +22,10 @@ public class UserPersistenceMapper {
                 .dateOfBirth(user.getDateOfBirth())
                 .gender(user.getGender())
                 .location(user.getLocation())
+                .tripType(user.getTripType())
+                .interests(copyInterests(user.getInterests()))
+                .destination(user.getDestination())
+                .isOnboarded(user.isOnboarded())
                 .followersCount(user.getFollowersCount())
                 .followingCount(user.getFollowingCount())
                 .postsCount(user.getPostsCount())
@@ -37,9 +44,22 @@ public class UserPersistenceMapper {
                 .dateOfBirth(user.getDateOfBirth())
                 .gender(user.getGender())
                 .location(user.getLocation())
+                .tripType(user.getTripType())
+                .interests(copyInterests(user.getInterests()))
+                .destination(user.getDestination())
+                .isOnboarded(user.isOnboarded())
                 .followersCount(user.getFollowersCount())
                 .followingCount(user.getFollowingCount())
                 .postsCount(user.getPostsCount())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
                 .build();
+    }
+
+    private List<String> copyInterests(List<String> interests) {
+        if (interests == null || interests.isEmpty()) {
+            return List.of();
+        }
+        return new ArrayList<>(interests);
     }
 }

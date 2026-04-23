@@ -1,6 +1,8 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,4 +32,7 @@ public interface TravelPlaceJpaRepository extends JpaRepository<TravelPlaceEntit
     @Modifying
     @Query("update TravelPlaceEntity p set p.views = coalesce(p.views, 0) + 1 where p.id = :id")
     void incrementViews(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = { "province" })
+    List<TravelPlaceEntity> findByIdIn(Collection<Long> ids);
 }

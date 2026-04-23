@@ -16,10 +16,15 @@ from src.entity.preference import (
     PreferenceResponse,
     PreferenceUpdateRequest,
 )
+from src.entity.recommendation import (
+    TravelPlaceRecommendationRequest,
+    TravelPlaceRecommendationResponse,
+)
 from src.entity.setting import get_settings
 from src.services.embedding import EmbeddingService
 from src.services.content_embedding_processor import ContentEmbeddingProcessor
 from src.services.embedding_text_composer import EmbeddingTextComposer
+from src.services.place_recommendation_service import PlaceRecommendationService
 from src.services.preference_profile_processor import PreferenceProfileProcessor
 from src.services import itinerary
 
@@ -93,6 +98,7 @@ async def lifespan(app: FastAPI):
     app.state.content_embedding_processor = ContentEmbeddingProcessor(
         embedding_service=app.state.embedding_service
     )
+    app.state.place_recommendation_service = PlaceRecommendationService()
     app.state.preference_profile_processor = PreferenceProfileProcessor(
         embedding_service=app.state.embedding_service
     )
@@ -159,6 +165,23 @@ async def upsert_post_embedding(
     pg_pool = request.app.state.pg_pool
     return await request.app.state.content_embedding_processor.upsert_post_embedding(
         post_id=post_id,
+        payload=payload,
+        pool=pg_pool,
+    )
+
+
+@app.post(
+    "/api/users/{user_id}/travel-place-recommendations",
+    response_model=TravelPlaceRecommendationResponse,
+)
+async def recommend_travel_places(
+    user_id: int,
+    payload: TravelPlaceRecommendationRequest,
+    request: Request,
+):
+    pg_pool = request.app.state.pg_pool
+    return await request.app.state.place_recommendation_service.recommend_for_user(
+        user_id=user_id,
         payload=payload,
         pool=pg_pool,
     )
