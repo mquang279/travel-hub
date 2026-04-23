@@ -56,6 +56,19 @@ public class PostRepositoryImpl implements PostRepository {
     }
 
     @Override
+    public PaginationResponse<PostModel> getByUserId(Long userId, int pageNumber, int pageSize) {
+        PageRequest request = PageRequest.of(pageNumber, pageSize);
+        Page<PostEntity> posts = this.postJpaRepository.findByUserId(userId, request);
+        PaginationResponse<PostModel> response = new PaginationResponse<PostModel>(
+                posts.getNumber(),
+                posts.getSize(),
+                posts.getTotalPages(),
+                posts.getTotalElements(),
+                posts.getContent().stream().map(mapper::toDomain).toList());
+        return response;
+    }
+
+    @Override
     @Transactional
     public void increaseLikeCount(Long id) {
         this.postJpaRepository.incrementLike(id);
