@@ -4,6 +4,7 @@ import json
 import os
 
 import asyncpg
+from tqdm import tqdm
 
 from src.entity.content_embedding import TravelPlaceEmbeddingUpsertCommand
 from src.entity.setting import get_settings
@@ -53,7 +54,7 @@ async def main():
             rows = await source_conn.fetch(TRAVEL_PLACE_SQL)
 
         processor = ContentEmbeddingProcessor(embedding_service=EmbeddingService())
-        for row in rows:
+        for row in tqdm(rows, desc="Embedding travel places", unit="place"):
             await processor.upsert_travel_place_embedding(
                 TravelPlaceEmbeddingUpsertCommand(
                     travel_place_id=row["id"],

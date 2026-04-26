@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -27,4 +29,14 @@ public interface TravelPlaceReviewJpaRepository extends JpaRepository<TravelPlac
             where r.place.id = :placeId
             """)
     TravelPlaceReviewStatsProjection getStatsByPlaceId(@Param("placeId") Long placeId);
+
+    @Query("""
+            select r.place.id as placeId,
+                   coalesce(avg(r.rating), 0) as averageRating,
+                   count(r) as reviewCount
+            from TravelPlaceReviewEntity r
+            where r.place.id in :placeIds
+            group by r.place.id
+            """)
+    List<TravelPlaceReviewStatsProjection> getStatsByPlaceIds(@Param("placeIds") Collection<Long> placeIds);
 }
