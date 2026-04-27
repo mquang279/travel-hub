@@ -33,7 +33,9 @@ except ImportError as exc:  # pragma: no cover
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_PROPERTIES_PATH = ROOT_DIR / "src" / "main" / "resources" / "application.properties"
+DEFAULT_PROPERTIES_PATH = (
+    ROOT_DIR / "src" / "main" / "resources" / "application.properties"
+)
 DEFAULT_RESULTS_DIR = ROOT_DIR.parent / "crawler" / "results"
 
 
@@ -87,7 +89,10 @@ def parse_db_config(properties: dict[str, str]) -> DbConfig:
     jdbc_url = properties["spring.datasource.url"]
     parsed = urlparse(jdbc_url.replace("jdbc:", "", 1))
     query_params = parse_qs(parsed.query)
-    dbname = unquote(parsed.path.lstrip("/")) or query_params.get("database", ["postgres"])[0]
+    dbname = (
+        unquote(parsed.path.lstrip("/"))
+        or query_params.get("database", ["postgres"])[0]
+    )
 
     return DbConfig(
         host=parsed.hostname or "localhost",
@@ -286,15 +291,21 @@ def seed_places(
         payload = load_payload(path)
         province_name = (payload.get("title") or "").strip()
         province_label = province_name or path.stem
-        print(f"[{index}/{total_files}] Processing province: {province_label} ({path.name})")
+        print(
+            f"[{index}/{total_files}] Processing province: {province_label} ({path.name})"
+        )
         province = province_map.get(normalize_name(province_name))
 
         if province is None:
-            print(f"[{index}/{total_files}] Skipped province (not found in DB): {province_label}")
+            print(
+                f"[{index}/{total_files}] Skipped province (not found in DB): {province_label}"
+            )
             summary["skipped_provinces"].append(province_label)
             continue
 
-        ensure_province_image(conn, province["id"], province.get("image"), payload.get("image"))
+        ensure_province_image(
+            conn, province["id"], province.get("image"), payload.get("image")
+        )
 
         items = payload.get("travel_items") or []
         if limit_per_province > 0:
