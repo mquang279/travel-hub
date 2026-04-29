@@ -71,6 +71,8 @@ public class PostPersistenceMapper {
                 .likeCount(entity.getLikeCount())
                 .travelPlaceId(travelPlaceId)
                 .location(location)
-                .userId(entity.getUser().getId()).build();
+                .userId(entity.getUser().getId())
+                .ownerUsername(entity.getUser().getUsername())
+                .build();
     }
 }
