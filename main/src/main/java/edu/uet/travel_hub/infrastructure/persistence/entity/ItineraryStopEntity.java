@@ -51,7 +51,4 @@ public class ItineraryStopEntity {
 
     @Column(length = 100)
     private String estimatedCost;
-
-    @Column(nullable = false)
-    private boolean highlighted;
 }

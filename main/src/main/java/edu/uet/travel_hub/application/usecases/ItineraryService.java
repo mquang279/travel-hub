@@ -152,7 +152,6 @@ public class ItineraryService {
                 .note(normalizeOptionalText(request.note()))
                 .transportToNext(normalizeOptionalText(request.transportToNext()))
                 .estimatedCost(normalizeOptionalText(request.estimatedCost()))
-                .highlighted(Boolean.TRUE.equals(request.highlighted()))
                 .build();
 
         day.getStops().add(stop);
@@ -175,7 +174,6 @@ public class ItineraryService {
         stop.setNote(normalizeOptionalText(request.note()));
         stop.setTransportToNext(normalizeOptionalText(request.transportToNext()));
         stop.setEstimatedCost(normalizeOptionalText(request.estimatedCost()));
-        stop.setHighlighted(Boolean.TRUE.equals(request.highlighted()));
 
         if (!currentDay.getId().equals(targetDay.getId())) {
             currentDay.getStops().remove(stop);
@@ -304,8 +302,7 @@ public class ItineraryService {
                                         stop.getPlaceName(),
                                         stop.getNote(),
                                         stop.getTransportToNext(),
-                                        stop.getEstimatedCost(),
-                                        stop.isHighlighted()))
+                                        stop.getEstimatedCost()))
                                 .toList()))
                 .toList();
 
