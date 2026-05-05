@@ -51,4 +51,10 @@ public class ItineraryStopEntity {
 
     @Column(length = 100)
     private String estimatedCost;
+
+    @Column
+    private Long colorHex;
+
+    @Column(length = 100)
+    private String iconName;
 }

@@ -152,6 +152,8 @@ public class ItineraryService {
                 .note(normalizeOptionalText(request.note()))
                 .transportToNext(normalizeOptionalText(request.transportToNext()))
                 .estimatedCost(normalizeOptionalText(request.estimatedCost()))
+                .colorHex(request.colorHex())
+                .iconName(normalizeOptionalText(request.iconName()))
                 .build();
 
         day.getStops().add(stop);
@@ -174,6 +176,8 @@ public class ItineraryService {
         stop.setNote(normalizeOptionalText(request.note()));
         stop.setTransportToNext(normalizeOptionalText(request.transportToNext()));
         stop.setEstimatedCost(normalizeOptionalText(request.estimatedCost()));
+        stop.setColorHex(request.colorHex());
+        stop.setIconName(normalizeOptionalText(request.iconName()));
 
         if (!currentDay.getId().equals(targetDay.getId())) {
             currentDay.getStops().remove(stop);
@@ -302,7 +306,9 @@ public class ItineraryService {
                                         stop.getPlaceName(),
                                         stop.getNote(),
                                         stop.getTransportToNext(),
-                                        stop.getEstimatedCost()))
+                                        stop.getEstimatedCost(),
+                                        stop.getColorHex(),
+                                        stop.getIconName()))
                                 .toList()))
                 .toList();
 
