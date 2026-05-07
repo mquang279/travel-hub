@@ -2,7 +2,9 @@ package edu.uet.travel_hub.application.usecases;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,32 +24,26 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryDayEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryStopEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryDayJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryDetailRow;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryJpaRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryStopJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItinerarySummaryProjection;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Service
 public class ItineraryService {
     private final ItineraryJpaRepository itineraryJpaRepository;
-    private final ItineraryDayJpaRepository itineraryDayJpaRepository;
-    private final ItineraryStopJpaRepository itineraryStopJpaRepository;
     private final UserJpaRepository userJpaRepository;
 
     public ItineraryService(
             ItineraryJpaRepository itineraryJpaRepository,
-            ItineraryDayJpaRepository itineraryDayJpaRepository,
-            ItineraryStopJpaRepository itineraryStopJpaRepository,
             UserJpaRepository userJpaRepository) {
         this.itineraryJpaRepository = itineraryJpaRepository;
-        this.itineraryDayJpaRepository = itineraryDayJpaRepository;
-        this.itineraryStopJpaRepository = itineraryStopJpaRepository;
         this.userJpaRepository = userJpaRepository;
     }
 
     @Transactional(readOnly = true)
     public List<ItinerarySummaryResponse> getMyItineraries(Long currentUserId) {
-        return this.itineraryJpaRepository.findByOwnerIdOrderByUpdatedAtDescIdDesc(currentUserId)
+        return this.itineraryJpaRepository.findSummariesByOwnerId(currentUserId)
                 .stream()
                 .map(this::toSummaryResponse)
                 .toList();
@@ -55,13 +51,12 @@ public class ItineraryService {
 
     @Transactional(readOnly = true)
     public ItineraryResponse getItinerary(Long itineraryId, Long currentUserId) {
-        return toResponse(findOwnedItinerary(itineraryId, currentUserId));
+        return toResponse(this.itineraryJpaRepository.findDetailRowsByIdAndOwnerId(itineraryId, currentUserId));
     }
 
     @Transactional(readOnly = true)
     public ItineraryResponse getItineraryByGroupName(String groupName, Long currentUserId) {
-        return toResponse(this.itineraryJpaRepository.findByOwnerIdAndGroupNameIgnoreCase(currentUserId, normalizeGroupName(groupName))
-                .orElseThrow(() -> new ResourceNotFoundException("Itinerary not found")));
+        return toResponse(this.itineraryJpaRepository.findDetailRowsByOwnerIdAndGroupName(currentUserId, normalizeGroupName(groupName)));
     }
 
     @Transactional
@@ -78,7 +73,8 @@ public class ItineraryService {
                 .version(1)
                 .build();
 
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
@@ -89,7 +85,8 @@ public class ItineraryService {
 
         itinerary.setGroupName(normalizedGroupName);
         bumpVersion(itinerary);
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
@@ -112,7 +109,8 @@ public class ItineraryService {
         itinerary.getDays().add(day);
         renumberDays(itinerary);
         bumpVersion(itinerary);
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
@@ -123,7 +121,8 @@ public class ItineraryService {
         day.setLabel(normalizeRequiredText(request.label(), "label"));
         day.setDateLabel(normalizeRequiredText(request.dateLabel(), "dateLabel"));
         bumpVersion(itinerary);
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
@@ -131,10 +130,11 @@ public class ItineraryService {
         ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
         ItineraryDayEntity day = findDay(itinerary, dayId);
 
-        itinerary.getDays().remove(day);
+        removeDayFromItinerary(itinerary, day);
         renumberDays(itinerary);
         bumpVersion(itinerary);
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
@@ -156,10 +156,10 @@ public class ItineraryService {
                 .iconName(normalizeOptionalText(request.iconName()))
                 .build();
 
-        day.getStops().add(stop);
-        normalizeStopOrders(day);
+        insertStop(day, stop, request.sortOrder());
         bumpVersion(itinerary);
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
@@ -180,16 +180,17 @@ public class ItineraryService {
         stop.setIconName(normalizeOptionalText(request.iconName()));
 
         if (!currentDay.getId().equals(targetDay.getId())) {
-            currentDay.getStops().remove(stop);
+            removeStopFromDay(currentDay, stop);
             normalizeStopOrders(currentDay);
-            targetDay.getStops().add(stop);
             stop.setDay(targetDay);
+            insertStop(targetDay, stop, request.sortOrder());
+        } else {
+            insertStop(targetDay, stop, request.sortOrder());
         }
 
-        stop.setSortOrder(resolveInsertIndex(targetDay, request.sortOrder()));
-        normalizeStopOrders(targetDay);
         bumpVersion(itinerary);
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
@@ -198,10 +199,15 @@ public class ItineraryService {
         ItineraryStopEntity stop = findStop(itinerary, stopId);
         ItineraryDayEntity day = stop.getDay();
 
-        day.getStops().remove(stop);
+        removeStopFromDay(day, stop);
         normalizeStopOrders(day);
         bumpVersion(itinerary);
-        return toResponse(this.itineraryJpaRepository.save(itinerary));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
+    }
+
+    private ItineraryResponse toResponse(Long itineraryId, Long currentUserId) {
+        return toResponse(this.itineraryJpaRepository.findDetailRowsByIdAndOwnerId(itineraryId, currentUserId));
     }
 
     private ItineraryEntity findOwnedItinerary(Long itineraryId, Long currentUserId) {
@@ -222,6 +228,17 @@ public class ItineraryService {
                 .filter(stop -> stop.getId().equals(stopId))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary stop not found"));
+    }
+
+    private void removeDayFromItinerary(ItineraryEntity itinerary, ItineraryDayEntity day) {
+        itinerary.getDays().removeIf(existingDay -> existingDay.getId().equals(day.getId()));
+    }
+
+    private void removeStopFromDay(ItineraryDayEntity day, ItineraryStopEntity stop) {
+        if (stop.getId() == null) {
+            return;
+        }
+        day.getStops().removeIf(existingStop -> stop.getId().equals(existingStop.getId()));
     }
 
     private void ensureGroupNameAvailable(Long ownerId, String groupName, Long itineraryId) {
@@ -249,11 +266,24 @@ public class ItineraryService {
         }
     }
 
+    private void insertStop(ItineraryDayEntity day, ItineraryStopEntity stop, Integer requestedSortOrder) {
+        removeStopFromDay(day, stop);
+        int insertIndex = resolveInsertIndex(day, requestedSortOrder);
+        day.getStops().add(insertIndex, stop);
+        renumberStopsInCurrentOrder(day);
+    }
+
     private int resolveInsertIndex(ItineraryDayEntity day, Integer requestedSortOrder) {
         if (requestedSortOrder == null || requestedSortOrder <= 0) {
-            return day.getStops().size() + 1;
+            return day.getStops().size();
         }
-        return Math.min(requestedSortOrder, day.getStops().size() + 1);
+        return Math.min(requestedSortOrder - 1, day.getStops().size());
+    }
+
+    private void renumberStopsInCurrentOrder(ItineraryDayEntity day) {
+        for (int index = 0; index < day.getStops().size(); index++) {
+            day.getStops().get(index).setSortOrder(index + 1);
+        }
     }
 
     private void bumpVersion(ItineraryEntity itinerary) {
@@ -276,49 +306,78 @@ public class ItineraryService {
         return value == null ? "" : value.trim();
     }
 
-    private ItinerarySummaryResponse toSummaryResponse(ItineraryEntity itinerary) {
-        int totalStops = itinerary.getDays().stream().mapToInt(day -> day.getStops().size()).sum();
+    private ItinerarySummaryResponse toSummaryResponse(ItinerarySummaryProjection itinerary) {
         return new ItinerarySummaryResponse(
                 itinerary.getId(),
                 itinerary.getGroupName(),
                 itinerary.getVersion(),
-                itinerary.getDays().size(),
-                totalStops,
+                Math.toIntExact(itinerary.getTotalDays()),
+                Math.toIntExact(itinerary.getTotalStops()),
                 itinerary.getUpdatedAt());
     }
 
-    private ItineraryResponse toResponse(ItineraryEntity itinerary) {
-        List<ItineraryDayResponse> days = itinerary.getDays().stream()
-                .sorted(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId))
+    private ItineraryResponse toResponse(List<ItineraryDetailRow> rows) {
+        if (rows.isEmpty()) {
+            throw new ResourceNotFoundException("Itinerary not found");
+        }
+
+        ItineraryDetailRow firstRow = rows.get(0);
+        Map<Long, DayAccumulator> dayById = new LinkedHashMap<>();
+
+        for (ItineraryDetailRow row : rows) {
+            if (row.getDayId() == null) {
+                continue;
+            }
+
+            DayAccumulator day = dayById.computeIfAbsent(row.getDayId(), ignored -> new DayAccumulator(
+                    row.getDayId(),
+                    row.getDayIndex(),
+                    row.getDayLabel(),
+                    row.getDateLabel()));
+
+            if (row.getStopId() != null) {
+                day.stops().add(new ItineraryStopResponse(
+                        row.getStopId(),
+                        row.getSortOrder(),
+                        row.getStartTime(),
+                        row.getEndTime(),
+                        row.getTitle(),
+                        row.getPlaceName(),
+                        row.getNote(),
+                        row.getTransportToNext(),
+                        row.getEstimatedCost(),
+                        row.getColorHex(),
+                        row.getIconName()));
+            }
+        }
+
+        List<ItineraryDayResponse> days = dayById.values().stream()
                 .map(day -> new ItineraryDayResponse(
-                        day.getId(),
-                        day.getDayIndex(),
-                        day.getLabel(),
-                        day.getDateLabel(),
-                        day.getStops().stream()
-                                .sorted(Comparator.comparing(ItineraryStopEntity::getSortOrder).thenComparing(ItineraryStopEntity::getId))
-                                .map(stop -> new ItineraryStopResponse(
-                                        stop.getId(),
-                                        stop.getSortOrder(),
-                                        stop.getStartTime(),
-                                        stop.getEndTime(),
-                                        stop.getTitle(),
-                                        stop.getPlaceName(),
-                                        stop.getNote(),
-                                        stop.getTransportToNext(),
-                                        stop.getEstimatedCost(),
-                                        stop.getColorHex(),
-                                        stop.getIconName()))
-                                .toList()))
+                        day.id(),
+                        day.dayIndex(),
+                        day.label(),
+                        day.dateLabel(),
+                        List.copyOf(day.stops())))
                 .toList();
 
         return new ItineraryResponse(
-                itinerary.getId(),
-                itinerary.getGroupName(),
-                itinerary.getVersion(),
-                itinerary.getOwner().getId(),
+                firstRow.getItineraryId(),
+                firstRow.getGroupName(),
+                firstRow.getVersion(),
+                firstRow.getOwnerId(),
                 days,
-                itinerary.getCreatedAt(),
-                itinerary.getUpdatedAt());
+                firstRow.getCreatedAt(),
+                firstRow.getUpdatedAt());
+    }
+
+    private record DayAccumulator(
+            Long id,
+            int dayIndex,
+            String label,
+            String dateLabel,
+            List<ItineraryStopResponse> stops) {
+        DayAccumulator(Long id, int dayIndex, String label, String dateLabel) {
+            this(id, dayIndex, label, dateLabel, new ArrayList<>());
+        }
     }
 }
