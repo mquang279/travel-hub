@@ -1,21 +1,19 @@
 package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
-import jakarta.persistence.CascadeType;
+import edu.uet.travel_hub.domain.enums.TripMemberRole;
+import edu.uet.travel_hub.domain.enums.TripMemberStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -28,55 +26,54 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
-        name = "itineraries",
+        name = "trip_members",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_itinerary_owner_group_name", columnNames = { "owner_id", "group_name" })
+                @UniqueConstraint(name = "uk_trip_member_trip_user", columnNames = {"trip_id", "user_id"})
         })
 @Getter
 @Setter
-@ToString(exclude = {"owner", "days"})
+@ToString(exclude = {"trip", "user"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ItineraryEntity {
+public class TripMemberEntity {
     @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "group_name", nullable = false, length = 200)
-    private String groupName;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "trip_id", nullable = false)
+    private TripEntity trip;
 
-    @Column(nullable = false)
-    private int version;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserEntity user;
 
-    @ManyToOne
-    @JoinColumn(name = "owner_id", nullable = false)
-    private UserEntity owner;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TripMemberRole role;
 
-    @Builder.Default
-    @OneToMany(mappedBy = "itinerary", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("dayIndex ASC, id ASC")
-    private List<ItineraryDayEntity> days = new ArrayList<>();
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TripMemberStatus status;
+
+    private Instant requestedAt;
+
+    private Instant respondedAt;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    @Column(nullable = false)
-    private Instant updatedAt;
-
     @PrePersist
     public void handleBeforeCreate() {
         this.createdAt = Instant.now();
-        this.updatedAt = this.createdAt;
-        if (this.version <= 0) {
-            this.version = 1;
+        if (this.requestedAt == null) {
+            this.requestedAt = this.createdAt;
         }
-    }
-
-    @PreUpdate
-    public void handleBeforeUpdate() {
-        this.updatedAt = Instant.now();
+        if (this.status == null) {
+            this.status = TripMemberStatus.PENDING;
+        }
     }
 }

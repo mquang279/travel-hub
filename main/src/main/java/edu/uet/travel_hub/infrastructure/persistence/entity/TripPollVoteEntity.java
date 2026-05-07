@@ -2,8 +2,8 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -21,30 +21,33 @@ import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Builder
-@Table(name = "likes", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "user_id", "post_id" })
-})
+@Table(
+        name = "trip_poll_votes",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_trip_poll_vote_poll_user", columnNames = { "poll_id", "user_id" })
+        })
 @Getter
 @Setter
-@ToString(exclude = {"user", "post"})
+@ToString(exclude = {"poll", "user"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@AllArgsConstructor
+@Builder
 @NoArgsConstructor
-public class LikeEntity {
+@AllArgsConstructor
+public class TripPollVoteEntity {
     @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "poll_id", nullable = false)
+    private TripPollEntity poll;
+
+    @ManyToOne(optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
-    private PostEntity post;
-
+    @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
     @PrePersist

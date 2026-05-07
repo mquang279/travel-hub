@@ -15,18 +15,25 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "travel_place_reviews", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "place_id", "user_id" })
 })
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"place", "user"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class TravelPlaceReviewEntity {
+    @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

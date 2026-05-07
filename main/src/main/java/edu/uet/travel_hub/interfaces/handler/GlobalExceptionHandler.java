@@ -1,6 +1,7 @@
 package edu.uet.travel_hub.interfaces.handler;
 
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
+import edu.uet.travel_hub.application.exception.ForbiddenTripActionException;
 import edu.uet.travel_hub.application.exception.UnauthorizedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(UnauthorizedException.class)
 	public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
 		return buildErrorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+	}
+
+	@ExceptionHandler(ForbiddenTripActionException.class)
+	public ResponseEntity<Map<String, Object>> handleForbiddenTripAction(ForbiddenTripActionException ex) {
+		return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

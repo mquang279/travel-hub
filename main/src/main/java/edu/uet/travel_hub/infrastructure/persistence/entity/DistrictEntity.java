@@ -13,16 +13,23 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "districts")
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"province", "wards"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class DistrictEntity {
+    @EqualsAndHashCode.Include
     @Id
     private Long id;
 

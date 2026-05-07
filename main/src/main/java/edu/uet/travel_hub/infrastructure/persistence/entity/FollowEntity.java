@@ -5,11 +5,15 @@ import lombok.*;
 
 @Entity
 @Table(name = "follows")
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"follower", "following"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class FollowEntity {
+    @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
