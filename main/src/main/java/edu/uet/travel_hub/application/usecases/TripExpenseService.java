@@ -1,7 +1,6 @@
 package edu.uet.travel_hub.application.usecases;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -10,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import edu.uet.travel_hub.application.dto.request.CreateTripExpenseRequest;
+import edu.uet.travel_hub.application.dto.request.UpdateTripExpenseRequest;
 import edu.uet.travel_hub.application.dto.response.TripExpenseContributionResponse;
 import edu.uet.travel_hub.application.dto.response.TripExpenseResponse;
 import edu.uet.travel_hub.application.dto.response.TripExpenseSummaryResponse;
@@ -108,6 +108,47 @@ public class TripExpenseService {
                 displayName(paidBy),
                 saved.getAmount(),
                 saved.getExpenseDate());
+    }
+
+    @Transactional
+    public TripExpenseTransactionResponse updateExpense(
+            Long tripId,
+            Long expenseId,
+            Long currentUserId,
+            UpdateTripExpenseRequest request) {
+        this.tripService.requireActiveMemberTrip(tripId, currentUserId);
+        TripExpenseEntity expense = this.tripExpenseJpaRepository.findByIdAndTripId(expenseId, tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
+        UserEntity paidBy = this.tripService.findUser(request.paidByUserId());
+        this.tripMemberJpaRepository.findByTripIdAndUserId(tripId, request.paidByUserId())
+                .filter(member -> member.getStatus() == TripMemberStatus.ACTIVE)
+                .orElseThrow(() -> new ForbiddenTripActionException("Paid-by user must be an active member"));
+
+        expense.setTitle(request.title().trim());
+        expense.setCategory(request.category());
+        expense.setAmount(request.amount());
+        expense.setPaidBy(paidBy);
+        TripExpenseEntity saved = this.tripExpenseJpaRepository.save(expense);
+
+        this.tripActivityLogService.log(saved.getTrip(), this.tripService.findUser(currentUserId), "UPDATE_EXPENSE", "EXPENSE", saved.getId(), "expense updated");
+        return new TripExpenseTransactionResponse(
+                saved.getId(),
+                saved.getTitle(),
+                saved.getCategory(),
+                paidBy.getId(),
+                displayName(paidBy),
+                saved.getAmount(),
+                saved.getExpenseDate());
+    }
+
+    @Transactional
+    public void deleteExpense(Long tripId, Long expenseId, Long currentUserId) {
+        this.tripService.requireActiveMemberTrip(tripId, currentUserId);
+        TripExpenseEntity expense = this.tripExpenseJpaRepository.findByIdAndTripId(expenseId, tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
+
+        this.tripExpenseJpaRepository.delete(expense);
+        this.tripActivityLogService.log(expense.getTrip(), this.tripService.findUser(currentUserId), "DELETE_EXPENSE", "EXPENSE", expenseId, "expense deleted");
     }
 
     private String displayName(UserEntity user) {

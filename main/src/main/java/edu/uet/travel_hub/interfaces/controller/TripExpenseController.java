@@ -3,14 +3,17 @@ package edu.uet.travel_hub.interfaces.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import edu.uet.travel_hub.application.dto.request.CreateTripExpenseRequest;
+import edu.uet.travel_hub.application.dto.request.UpdateTripExpenseRequest;
 import edu.uet.travel_hub.application.dto.response.TripExpenseResponse;
 import edu.uet.travel_hub.application.dto.response.TripExpenseTransactionResponse;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
@@ -40,5 +43,24 @@ public class TripExpenseController {
             @Valid @RequestBody CreateTripExpenseRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(this.tripExpenseService.addExpense(tripId, this.currentUserProvider.getCurrentUserId(), request));
+    }
+
+    @PutMapping("/{expenseId}")
+    public ResponseEntity<TripExpenseTransactionResponse> updateExpense(
+            @PathVariable Long tripId,
+            @PathVariable Long expenseId,
+            @Valid @RequestBody UpdateTripExpenseRequest request) {
+        return ResponseEntity.ok(
+                this.tripExpenseService.updateExpense(
+                        tripId,
+                        expenseId,
+                        this.currentUserProvider.getCurrentUserId(),
+                        request));
+    }
+
+    @DeleteMapping("/{expenseId}")
+    public ResponseEntity<Void> deleteExpense(@PathVariable Long tripId, @PathVariable Long expenseId) {
+        this.tripExpenseService.deleteExpense(tripId, expenseId, this.currentUserProvider.getCurrentUserId());
+        return ResponseEntity.noContent().build();
     }
 }

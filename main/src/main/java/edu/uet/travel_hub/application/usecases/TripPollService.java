@@ -1,6 +1,5 @@
 package edu.uet.travel_hub.application.usecases;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import edu.uet.travel_hub.application.dto.request.CreateTripPollRequest;
+import edu.uet.travel_hub.application.dto.request.UpdateTripPollRequest;
 import edu.uet.travel_hub.application.dto.response.TripPollResponse;
 import edu.uet.travel_hub.application.exception.ForbiddenTripActionException;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
@@ -79,6 +79,9 @@ public class TripPollService {
         TripEntity trip = this.tripService.requireActiveMemberTrip(tripId, currentUserId);
         TripPollEntity poll = this.tripPollJpaRepository.findByIdAndTripId(pollId, tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Poll not found"));
+                if (poll.isClosed()) {
+                        throw new ForbiddenTripActionException("Poll is closed");
+                }
         UserEntity user = this.tripService.findUser(currentUserId);
         this.tripMemberJpaRepository.findByTripIdAndUserId(tripId, currentUserId)
                 .filter(member -> member.getStatus() == TripMemberStatus.ACTIVE)
@@ -95,6 +98,38 @@ public class TripPollService {
         this.tripActivityLogService.log(trip, user, "TOGGLE_VOTE", "POLL", pollId, "vote toggled");
         return listPolls(tripId, currentUserId);
     }
+
+        @Transactional
+        public TripPollResponse updatePoll(Long tripId, Long pollId, Long currentUserId, UpdateTripPollRequest request) {
+                this.tripService.requireLeaderTrip(tripId, currentUserId);
+                TripPollEntity poll = this.tripPollJpaRepository.findByIdAndTripId(pollId, tripId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Poll not found"));
+                poll.setTitle(request.title().trim());
+                poll.setCategory(request.category());
+                TripPollEntity saved = this.tripPollJpaRepository.save(poll);
+                this.tripActivityLogService.log(saved.getTrip(), this.tripService.findUser(currentUserId), "UPDATE_POLL", "POLL", pollId, "poll updated");
+                return toResponse(saved, currentUserId, Map.of(), 0L);
+        }
+
+        @Transactional
+        public TripPollResponse closePoll(Long tripId, Long pollId, Long currentUserId) {
+                this.tripService.requireLeaderTrip(tripId, currentUserId);
+                TripPollEntity poll = this.tripPollJpaRepository.findByIdAndTripId(pollId, tripId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Poll not found"));
+                poll.setClosed(true);
+                TripPollEntity saved = this.tripPollJpaRepository.save(poll);
+                this.tripActivityLogService.log(saved.getTrip(), this.tripService.findUser(currentUserId), "CLOSE_POLL", "POLL", pollId, "poll closed");
+                return toResponse(saved, currentUserId, Map.of(), 0L);
+        }
+
+        @Transactional
+        public void deletePoll(Long tripId, Long pollId, Long currentUserId) {
+                this.tripService.requireLeaderTrip(tripId, currentUserId);
+                TripPollEntity poll = this.tripPollJpaRepository.findByIdAndTripId(pollId, tripId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Poll not found"));
+                this.tripPollJpaRepository.delete(poll);
+                this.tripActivityLogService.log(poll.getTrip(), this.tripService.findUser(currentUserId), "DELETE_POLL", "POLL", pollId, "poll deleted");
+        }
 
     private TripPollResponse toResponse(TripPollEntity poll, Long currentUserId, Map<Long, Long> voteCounts, long maxVotes) {
         int votesCount = voteCounts.getOrDefault(poll.getId(), 0L).intValue();

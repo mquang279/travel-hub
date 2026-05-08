@@ -58,6 +58,9 @@ public class TripPollEntity {
     @JoinColumn(name = "created_by_user_id")
     private UserEntity createdBy;
 
+    @Column(nullable = false)
+    private boolean closed;
+
     @Builder.Default
     @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TripPollVoteEntity> votes = new ArrayList<>();
@@ -72,6 +75,7 @@ public class TripPollEntity {
     public void handleBeforeCreate() {
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
+        this.closed = false;
     }
 
     @PreUpdate

@@ -13,6 +13,8 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.TripExpenseEntity;
 public interface TripExpenseJpaRepository extends JpaRepository<TripExpenseEntity, Long> {
     List<TripExpenseEntity> findByTripIdOrderByExpenseDateDescIdDesc(Long tripId);
 
+    Optional<TripExpenseEntity> findByIdAndTripId(Long id, Long tripId);
+
     @Query("SELECT SUM(e.amount) FROM TripExpenseEntity e WHERE e.trip.id = :tripId")
     Optional<BigDecimal> sumAmountByTripId(@Param("tripId") Long tripId);
 }
