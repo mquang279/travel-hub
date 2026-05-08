@@ -5,21 +5,31 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import edu.uet.travel_hub.application.dto.request.ApplyItineraryAiProposalRequest;
+import edu.uet.travel_hub.application.dto.request.CreateItineraryAiProposalRequest;
 import edu.uet.travel_hub.application.dto.request.CreateItineraryDayRequest;
 import edu.uet.travel_hub.application.dto.request.CreateItineraryRequest;
 import edu.uet.travel_hub.application.dto.request.CreateItineraryStopRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateItineraryDayRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateItineraryRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateItineraryStopRequest;
+import edu.uet.travel_hub.application.dto.response.ItineraryAiChangeResponse;
+import edu.uet.travel_hub.application.dto.response.ItineraryAiDayDraftResponse;
+import edu.uet.travel_hub.application.dto.response.ItineraryAiProposalResponse;
+import edu.uet.travel_hub.application.dto.response.ItineraryAiStopDraftResponse;
 import edu.uet.travel_hub.application.dto.response.ItineraryDayResponse;
 import edu.uet.travel_hub.application.dto.response.ItineraryResponse;
 import edu.uet.travel_hub.application.dto.response.ItineraryStopResponse;
 import edu.uet.travel_hub.application.dto.response.ItinerarySummaryResponse;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
+import edu.uet.travel_hub.application.port.out.ItineraryAiGateway;
+import edu.uet.travel_hub.application.port.out.ItineraryAiGateway.ItineraryAiGatewayRequest;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryDayEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryStopEntity;
@@ -33,12 +43,16 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepos
 public class ItineraryService {
     private final ItineraryJpaRepository itineraryJpaRepository;
     private final UserJpaRepository userJpaRepository;
+    private final ItineraryAiGateway itineraryAiGateway;
+    private final Map<String, StoredAiProposal> pendingAiProposals = new ConcurrentHashMap<>();
 
     public ItineraryService(
             ItineraryJpaRepository itineraryJpaRepository,
-            UserJpaRepository userJpaRepository) {
+            UserJpaRepository userJpaRepository,
+            ItineraryAiGateway itineraryAiGateway) {
         this.itineraryJpaRepository = itineraryJpaRepository;
         this.userJpaRepository = userJpaRepository;
+        this.itineraryAiGateway = itineraryAiGateway;
     }
 
     @Transactional(readOnly = true)
@@ -206,6 +220,65 @@ public class ItineraryService {
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
+    @Transactional(readOnly = true)
+    public ItineraryAiProposalResponse createAiProposal(
+            Long itineraryId,
+            Long currentUserId,
+            CreateItineraryAiProposalRequest request) {
+        ItineraryResponse itinerary = getItinerary(itineraryId, currentUserId);
+        if (request.baseVersion() != null && request.baseVersion() != itinerary.version()) {
+            throw new IllegalArgumentException("Itinerary version has changed. Refresh before asking AI to edit.");
+        }
+
+        String task = normalizeAiTask(request.task(), itinerary.days().isEmpty());
+        ItineraryAiProposalResponse proposal = this.itineraryAiGateway.createProposal(new ItineraryAiGatewayRequest(
+                task,
+                normalizeRequiredText(request.prompt(), "prompt"),
+                normalizeInputType(request.inputType()),
+                request.selectedDayId(),
+                request.selectedDayIndex(),
+                request.desiredDays(),
+                normalizeOptionalText(request.destination()),
+                itinerary));
+
+        if (proposal == null || proposal.proposalId() == null || proposal.changes() == null) {
+            throw new IllegalArgumentException("AI did not return a valid proposal");
+        }
+
+        this.pendingAiProposals.put(proposal.proposalId(), new StoredAiProposal(itineraryId, currentUserId, proposal));
+        return proposal;
+    }
+
+    @Transactional
+    public ItineraryResponse applyAiProposal(
+            Long itineraryId,
+            String proposalId,
+            Long currentUserId,
+            ApplyItineraryAiProposalRequest request) {
+        StoredAiProposal storedProposal = this.pendingAiProposals.get(proposalId);
+        if (storedProposal == null
+                || !storedProposal.itineraryId().equals(itineraryId)
+                || !storedProposal.ownerId().equals(currentUserId)) {
+            throw new ResourceNotFoundException("AI proposal not found");
+        }
+
+        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryAiProposalResponse proposal = storedProposal.proposal();
+        if (request.baseVersion() != proposal.baseVersion() || itinerary.getVersion() != proposal.baseVersion()) {
+            throw new IllegalArgumentException("AI proposal is stale. Regenerate before applying changes.");
+        }
+
+        Set<String> selectedChangeIds = Set.copyOf(request.selectedChangeIds());
+        proposal.changes().stream()
+                .filter(change -> selectedChangeIds.contains(change.changeId()))
+                .forEach(change -> applyAiChange(itinerary, change));
+
+        bumpVersion(itinerary);
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        this.pendingAiProposals.remove(proposalId);
+        return toResponse(savedItinerary.getId(), currentUserId);
+    }
+
     private ItineraryResponse toResponse(Long itineraryId, Long currentUserId) {
         return toResponse(this.itineraryJpaRepository.findDetailRowsByIdAndOwnerId(itineraryId, currentUserId));
     }
@@ -228,6 +301,173 @@ public class ItineraryService {
                 .filter(stop -> stop.getId().equals(stopId))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary stop not found"));
+    }
+
+    private ItineraryDayEntity findDayByIdOrIndex(ItineraryEntity itinerary, Long dayId, Integer dayIndex) {
+        if (dayId != null) {
+            return findDay(itinerary, dayId);
+        }
+        if (dayIndex != null) {
+            return itinerary.getDays().stream()
+                    .filter(day -> day.getDayIndex() == dayIndex)
+                    .findFirst()
+                    .orElseThrow(() -> new ResourceNotFoundException("Itinerary day not found"));
+        }
+        throw new IllegalArgumentException("Target day is required");
+    }
+
+    private void applyAiChange(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+        switch (change.type()) {
+            case "ADD_DAY" -> applyAddDay(itinerary, change.dayAfter());
+            case "UPDATE_DAY" -> applyUpdateDay(itinerary, change);
+            case "DELETE_DAY" -> applyDeleteDay(itinerary, change);
+            case "ADD_EVENT" -> applyAddEvent(itinerary, change);
+            case "UPDATE_EVENT" -> applyUpdateEvent(itinerary, change);
+            case "DELETE_EVENT" -> applyDeleteEvent(itinerary, change);
+            case "MOVE_EVENT" -> applyMoveEvent(itinerary, change);
+            default -> throw new IllegalArgumentException("Unsupported AI change type: " + change.type());
+        }
+    }
+
+    private void applyAddDay(ItineraryEntity itinerary, ItineraryAiDayDraftResponse dayDraft) {
+        if (dayDraft == null) {
+            throw new IllegalArgumentException("dayAfter is required for ADD_DAY");
+        }
+
+        ItineraryDayEntity day = ItineraryDayEntity.builder()
+                .itinerary(itinerary)
+                .dayIndex(dayDraft.dayIndex() > 0 ? dayDraft.dayIndex() : itinerary.getDays().size() + 1)
+                .label(normalizeRequiredText(dayDraft.label(), "label"))
+                .dateLabel(normalizeRequiredText(dayDraft.dateLabel(), "dateLabel"))
+                .build();
+
+        itinerary.getDays().add(day);
+        if (dayDraft.stops() != null) {
+            for (ItineraryAiStopDraftResponse stopDraft : dayDraft.stops()) {
+                ItineraryStopEntity stop = buildStopFromAiDraft(day, stopDraft);
+                day.getStops().add(stop);
+            }
+            normalizeStopOrders(day);
+        }
+        renumberDays(itinerary);
+    }
+
+    private void applyUpdateDay(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+        ItineraryAiDayDraftResponse dayDraft = change.dayAfter();
+        if (dayDraft == null) {
+            throw new IllegalArgumentException("dayAfter is required for UPDATE_DAY");
+        }
+        Long targetDayId = change.targetDayId() != null ? change.targetDayId() : dayDraft != null ? dayDraft.id() : null;
+        Integer targetDayIndex = dayDraft != null ? dayDraft.dayIndex() : null;
+        ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
+        day.setLabel(normalizeRequiredText(dayDraft.label(), "label"));
+        day.setDateLabel(normalizeRequiredText(dayDraft.dateLabel(), "dateLabel"));
+    }
+
+    private void applyDeleteDay(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+        ItineraryAiDayDraftResponse dayDraft = change.dayBefore();
+        Long targetDayId = change.targetDayId() != null ? change.targetDayId() : dayDraft != null ? dayDraft.id() : null;
+        Integer targetDayIndex = dayDraft != null ? dayDraft.dayIndex() : null;
+        ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
+        removeDayFromItinerary(itinerary, day);
+        renumberDays(itinerary);
+    }
+
+    private void applyAddEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+        ItineraryAiStopDraftResponse stopDraft = change.stopAfter();
+        if (stopDraft == null) {
+            throw new IllegalArgumentException("stopAfter is required for ADD_EVENT");
+        }
+        Long targetDayId = firstNonNull(change.toDayId(), stopDraft.dayId());
+        Integer targetDayIndex = firstNonNull(change.toDayIndex(), stopDraft.dayIndex());
+        ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
+        ItineraryStopEntity stop = buildStopFromAiDraft(day, stopDraft);
+        Integer requestedSortOrder = change.insertAt() == null ? stopDraft.sortOrder() : change.insertAt() + 1;
+        insertStop(day, stop, requestedSortOrder);
+    }
+
+    private void applyUpdateEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+        ItineraryAiStopDraftResponse stopDraft = change.stopAfter();
+        Long targetStopId = firstNonNull(change.targetStopId(), stopDraft != null ? stopDraft.id() : null);
+        if (targetStopId == null || stopDraft == null) {
+            throw new IllegalArgumentException("targetStopId and stopAfter are required for UPDATE_EVENT");
+        }
+
+        ItineraryStopEntity stop = findStop(itinerary, targetStopId);
+        ItineraryDayEntity currentDay = stop.getDay();
+        Long targetDayId = firstNonNull(change.toDayId(), stopDraft.dayId());
+        Integer targetDayIndex = firstNonNull(change.toDayIndex(), stopDraft.dayIndex());
+        Long resolvedTargetDayId = targetDayId != null || targetDayIndex == null ? firstNonNull(targetDayId, currentDay.getId()) : null;
+        ItineraryDayEntity targetDay = findDayByIdOrIndex(
+                itinerary,
+                resolvedTargetDayId,
+                targetDayIndex);
+
+        updateStopFromAiDraft(stop, stopDraft);
+        if (!currentDay.getId().equals(targetDay.getId())) {
+            removeStopFromDay(currentDay, stop);
+            normalizeStopOrders(currentDay);
+            stop.setDay(targetDay);
+            insertStop(targetDay, stop, stopDraft.sortOrder());
+        } else {
+            insertStop(targetDay, stop, stopDraft.sortOrder());
+        }
+    }
+
+    private void applyDeleteEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+        Long targetStopId = firstNonNull(change.targetStopId(), change.stopBefore() != null ? change.stopBefore().id() : null);
+        if (targetStopId == null) {
+            throw new IllegalArgumentException("targetStopId is required for DELETE_EVENT");
+        }
+        ItineraryStopEntity stop = findStop(itinerary, targetStopId);
+        ItineraryDayEntity day = stop.getDay();
+        removeStopFromDay(day, stop);
+        normalizeStopOrders(day);
+    }
+
+    private void applyMoveEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+        Long targetStopId = firstNonNull(change.targetStopId(), change.stopBefore() != null ? change.stopBefore().id() : null);
+        if (targetStopId == null) {
+            throw new IllegalArgumentException("targetStopId is required for MOVE_EVENT");
+        }
+        ItineraryStopEntity stop = findStop(itinerary, targetStopId);
+        ItineraryDayEntity currentDay = stop.getDay();
+        ItineraryDayEntity targetDay = findDayByIdOrIndex(itinerary, change.toDayId(), change.toDayIndex());
+
+        if (!currentDay.getId().equals(targetDay.getId())) {
+            removeStopFromDay(currentDay, stop);
+            normalizeStopOrders(currentDay);
+            stop.setDay(targetDay);
+        }
+        insertStop(targetDay, stop, change.toIndex() == null ? null : change.toIndex() + 1);
+    }
+
+    private ItineraryStopEntity buildStopFromAiDraft(ItineraryDayEntity day, ItineraryAiStopDraftResponse stopDraft) {
+        return ItineraryStopEntity.builder()
+                .day(day)
+                .sortOrder(stopDraft.sortOrder() == null ? day.getStops().size() + 1 : stopDraft.sortOrder())
+                .startTime(normalizeOptionalText(stopDraft.startTime()))
+                .endTime(normalizeOptionalText(stopDraft.endTime()))
+                .title(normalizeRequiredText(stopDraft.title(), "title"))
+                .placeName(normalizeRequiredText(stopDraft.placeName(), "placeName"))
+                .note(normalizeOptionalText(stopDraft.note()))
+                .transportToNext(normalizeOptionalText(stopDraft.transportToNext()))
+                .estimatedCost(normalizeOptionalText(stopDraft.estimatedCost()))
+                .colorHex(stopDraft.colorHex())
+                .iconName(normalizeOptionalText(stopDraft.iconName()))
+                .build();
+    }
+
+    private void updateStopFromAiDraft(ItineraryStopEntity stop, ItineraryAiStopDraftResponse stopDraft) {
+        stop.setStartTime(normalizeOptionalText(stopDraft.startTime()));
+        stop.setEndTime(normalizeOptionalText(stopDraft.endTime()));
+        stop.setTitle(normalizeRequiredText(stopDraft.title(), "title"));
+        stop.setPlaceName(normalizeRequiredText(stopDraft.placeName(), "placeName"));
+        stop.setNote(normalizeOptionalText(stopDraft.note()));
+        stop.setTransportToNext(normalizeOptionalText(stopDraft.transportToNext()));
+        stop.setEstimatedCost(normalizeOptionalText(stopDraft.estimatedCost()));
+        stop.setColorHex(stopDraft.colorHex());
+        stop.setIconName(normalizeOptionalText(stopDraft.iconName()));
     }
 
     private void removeDayFromItinerary(ItineraryEntity itinerary, ItineraryDayEntity day) {
@@ -294,6 +534,19 @@ public class ItineraryService {
         return normalizeRequiredText(value, "groupName");
     }
 
+    private String normalizeAiTask(String value, boolean itineraryIsEmpty) {
+        String normalized = value == null ? "" : value.trim().toUpperCase();
+        if ("GENERATE_ITINERARY".equals(normalized) || "EDIT_ITINERARY".equals(normalized)) {
+            return normalized;
+        }
+        return itineraryIsEmpty ? "GENERATE_ITINERARY" : "EDIT_ITINERARY";
+    }
+
+    private String normalizeInputType(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase();
+        return "VOICE".equals(normalized) ? "VOICE" : "TEXT";
+    }
+
     private String normalizeRequiredText(String value, String fieldName) {
         String normalized = value == null ? "" : value.trim();
         if (normalized.isEmpty()) {
@@ -304,6 +557,10 @@ public class ItineraryService {
 
     private String normalizeOptionalText(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private <T> T firstNonNull(T first, T second) {
+        return first != null ? first : second;
     }
 
     private ItinerarySummaryResponse toSummaryResponse(ItinerarySummaryProjection itinerary) {
@@ -379,5 +636,11 @@ public class ItineraryService {
         DayAccumulator(Long id, int dayIndex, String label, String dateLabel) {
             this(id, dayIndex, label, dateLabel, new ArrayList<>());
         }
+    }
+
+    private record StoredAiProposal(
+            Long itineraryId,
+            Long ownerId,
+            ItineraryAiProposalResponse proposal) {
     }
 }
