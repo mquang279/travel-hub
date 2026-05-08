@@ -69,8 +69,11 @@ public class UserEntity {
     @Column(name = "interest", nullable = false)
     private List<String> interests;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private List<DeviceTokenEntity> deviceTokens;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<NotificationEntity> notifications;
 
     private String destination;
 
