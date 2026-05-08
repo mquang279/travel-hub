@@ -15,7 +15,7 @@ public class SaveNotificationService implements SaveNotificationUseCase {
 
     @Override
     public void save(Long userId, String title, String body) {
-        this.sender.send(userId, title, body);
         this.notificationRepository.save(userId, title, body);
+        this.sender.send(userId, title, body);
     }
 }

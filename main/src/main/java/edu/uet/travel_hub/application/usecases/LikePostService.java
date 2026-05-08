@@ -29,9 +29,8 @@ public class LikePostService implements LikePostUseCase {
             this.likeRepository.save(userId, postId);
             this.postRepository.increaseLikeCount(postId);
 
-            // Send notification
             String title = "New notification";
-            String body = "Someone like your post";
+            String body = "Your post received a new like";
             this.saveNotificationService.save(postModel.getUserId(), title, body);
         }
 
