@@ -14,12 +14,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import edu.uet.travel_hub.application.dto.request.ApplyItineraryAiProposalRequest;
+import edu.uet.travel_hub.application.dto.request.CreateItineraryAiProposalRequest;
 import edu.uet.travel_hub.application.dto.request.CreateItineraryDayRequest;
 import edu.uet.travel_hub.application.dto.request.CreateItineraryRequest;
 import edu.uet.travel_hub.application.dto.request.CreateItineraryStopRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateItineraryDayRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateItineraryRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateItineraryStopRequest;
+import edu.uet.travel_hub.application.dto.response.ItineraryAiProposalResponse;
 import edu.uet.travel_hub.application.dto.response.ItineraryResponse;
 import edu.uet.travel_hub.application.dto.response.ItinerarySummaryResponse;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
@@ -101,6 +104,26 @@ public class ItineraryController {
             @Valid @RequestBody CreateItineraryStopRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(this.itineraryService.createStop(itineraryId, this.currentUserProvider.getCurrentUserId(), request));
+    }
+
+    @PostMapping("/{itineraryId}/ai/proposals")
+    public ResponseEntity<ItineraryAiProposalResponse> createAiProposal(
+            @PathVariable Long itineraryId,
+            @Valid @RequestBody CreateItineraryAiProposalRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(this.itineraryService.createAiProposal(itineraryId, this.currentUserProvider.getCurrentUserId(), request));
+    }
+
+    @PostMapping("/{itineraryId}/ai/proposals/{proposalId}/apply")
+    public ResponseEntity<ItineraryResponse> applyAiProposal(
+            @PathVariable Long itineraryId,
+            @PathVariable String proposalId,
+            @Valid @RequestBody ApplyItineraryAiProposalRequest request) {
+        return ResponseEntity.ok(this.itineraryService.applyAiProposal(
+                itineraryId,
+                proposalId,
+                this.currentUserProvider.getCurrentUserId(),
+                request));
     }
 
     @PutMapping("/{itineraryId}/stops/{stopId}")

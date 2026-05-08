@@ -1,5 +1,8 @@
 package edu.uet.travel_hub.application.usecases;
 
+import java.util.List;
+import java.util.Set;
+
 import org.springframework.stereotype.Service;
 
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
@@ -26,13 +29,24 @@ public class GetAllPostsService implements GetAllPostsUseCase {
     public PaginationResponse<PostModel> getAll(int pageNumber, int pageSize) {
         PaginationResponse<PostModel> posts = this.postRepository.getAll(pageNumber, pageSize);
         Long currentUserId = getCurrentUserIdOrNull();
+        Set<Long> likedPostIds = findLikedPostIds(currentUserId, posts.data());
 
         for (PostModel post : posts.data()) {
-            boolean isLiked = currentUserId != null && this.likeRepository.exists(currentUserId, post.getId());
-            post.setLiked(isLiked);
+            post.setLiked(likedPostIds.contains(post.getId()));
         }
 
         return posts;
+    }
+
+    private Set<Long> findLikedPostIds(Long currentUserId, List<PostModel> posts) {
+        if (currentUserId == null || posts.isEmpty()) {
+            return Set.of();
+        }
+
+        List<Long> postIds = posts.stream()
+                .map(PostModel::getId)
+                .toList();
+        return this.likeRepository.findLikedPostIds(currentUserId, postIds);
     }
 
     private Long getCurrentUserIdOrNull() {

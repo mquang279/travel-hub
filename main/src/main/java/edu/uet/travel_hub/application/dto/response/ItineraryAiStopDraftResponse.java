@@ -1,22 +1,20 @@
-package edu.uet.travel_hub.application.dto.request;
+package edu.uet.travel_hub.application.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
-public record CreateItineraryStopRequest(
-        @NotNull(message = "dayId is required")
+public record ItineraryAiStopDraftResponse(
+        Long id,
         @JsonProperty("day_id")
         Long dayId,
+        @JsonProperty("day_index")
+        Integer dayIndex,
         @JsonProperty("sort_order")
         Integer sortOrder,
         @JsonProperty("start_time")
         String startTime,
         @JsonProperty("end_time")
         String endTime,
-        @NotBlank(message = "title is required")
         String title,
-        @NotBlank(message = "placeName is required")
         @JsonProperty("place_name")
         String placeName,
         String note,

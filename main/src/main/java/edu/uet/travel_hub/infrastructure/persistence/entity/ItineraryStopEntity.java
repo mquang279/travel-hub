@@ -2,6 +2,7 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -31,7 +32,7 @@ public class ItineraryStopEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "day_id", nullable = false)
     private ItineraryDayEntity day;
 
@@ -59,6 +60,9 @@ public class ItineraryStopEntity {
     @Column(length = 100)
     private String estimatedCost;
 
-    @Column(nullable = false)
-    private boolean highlighted;
+    @Column
+    private Long colorHex;
+
+    @Column(length = 100)
+    private String iconName;
 }

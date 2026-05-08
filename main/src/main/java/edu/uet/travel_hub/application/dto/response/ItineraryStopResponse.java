@@ -18,5 +18,8 @@ public record ItineraryStopResponse(
         String transportToNext,
         @JsonProperty("estimated_cost")
         String estimatedCost,
-        boolean highlighted) {
+        @JsonProperty("color_hex")
+        Long colorHex,
+        @JsonProperty("icon_name")
+        String iconName) {
 }

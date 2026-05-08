@@ -31,6 +31,8 @@ public class PostModel {
 
     private Long userId;
 
+    private String ownerUsername;
+
     private Instant createdAt;
 
     private Instant updatedAt;

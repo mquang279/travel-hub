@@ -3,9 +3,12 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hibernate.annotations.BatchSize;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -37,7 +40,7 @@ public class ItineraryDayEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "itinerary_id", nullable = false)
     private ItineraryEntity itinerary;
 
@@ -53,5 +56,6 @@ public class ItineraryDayEntity {
     @Builder.Default
     @OneToMany(mappedBy = "day", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC, id ASC")
+    @BatchSize(size = 200)
     private List<ItineraryStopEntity> stops = new ArrayList<>();
 }

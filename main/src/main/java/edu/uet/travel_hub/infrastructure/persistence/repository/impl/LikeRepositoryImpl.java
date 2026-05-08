@@ -1,5 +1,8 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.impl;
 
+import java.util.Collection;
+import java.util.Set;
+
 import org.springframework.stereotype.Repository;
 
 import edu.uet.travel_hub.application.port.out.LikeRepository;
@@ -48,5 +51,13 @@ public class LikeRepositoryImpl implements LikeRepository {
     @Override
     public boolean exists(Long userId, Long postId) {
         return this.likeJpaRepository.existsByUserIdAndPostId(userId, postId);
+    }
+
+    @Override
+    public Set<Long> findLikedPostIds(Long userId, Collection<Long> postIds) {
+        if (userId == null || postIds == null || postIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(this.likeJpaRepository.findLikedPostIds(userId, postIds));
     }
 }
