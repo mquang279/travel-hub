@@ -14,9 +14,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.orm.jpa.JpaObjectRetrievalFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import jakarta.persistence.EntityNotFoundException;
 import edu.uet.travel_hub.application.dto.request.UpsertTravelPlaceRequest;
 import edu.uet.travel_hub.application.dto.request.UpsertTravelPlaceReviewRequest;
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
@@ -48,6 +55,10 @@ import edu.uet.travel_hub.domain.model.TravelPlaceRecommendationQuery;
 
 @Service
 public class TravelPlaceService {
+    private static final Logger log = LoggerFactory.getLogger(TravelPlaceService.class);
+    private static final TravelPlaceReviewAuthorResponse UNKNOWN_REVIEW_AUTHOR =
+            new TravelPlaceReviewAuthorResponse(-1L, "Người dùng Travel Hub", "travelhub_user", null);
+
     private final ProvinceJpaRepository provinceJpaRepository;
     private final TravelPlaceJpaRepository travelPlaceJpaRepository;
     private final TravelPlaceImageJpaRepository travelPlaceImageJpaRepository;
@@ -55,6 +66,7 @@ public class TravelPlaceService {
     private final TravelPlaceViewHistoryJpaRepository travelPlaceViewHistoryJpaRepository;
     private final UserJpaRepository userJpaRepository;
     private final AiEmbeddingGateway aiEmbeddingGateway;
+    private final TransactionTemplate sideEffectTransactionTemplate;
 
     public TravelPlaceService(
             ProvinceJpaRepository provinceJpaRepository,
@@ -63,7 +75,8 @@ public class TravelPlaceService {
             TravelPlaceReviewJpaRepository travelPlaceReviewJpaRepository,
             TravelPlaceViewHistoryJpaRepository travelPlaceViewHistoryJpaRepository,
             UserJpaRepository userJpaRepository,
-            AiEmbeddingGateway aiEmbeddingGateway) {
+            AiEmbeddingGateway aiEmbeddingGateway,
+            PlatformTransactionManager transactionManager) {
         this.provinceJpaRepository = provinceJpaRepository;
         this.travelPlaceJpaRepository = travelPlaceJpaRepository;
         this.travelPlaceImageJpaRepository = travelPlaceImageJpaRepository;
@@ -71,6 +84,8 @@ public class TravelPlaceService {
         this.travelPlaceViewHistoryJpaRepository = travelPlaceViewHistoryJpaRepository;
         this.userJpaRepository = userJpaRepository;
         this.aiEmbeddingGateway = aiEmbeddingGateway;
+        this.sideEffectTransactionTemplate = new TransactionTemplate(transactionManager);
+        this.sideEffectTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Transactional(readOnly = true)
@@ -87,22 +102,15 @@ public class TravelPlaceService {
                 places.getTotalElements(), data);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public TravelPlaceDetailResponse getPlaceDetail(Long placeId, Optional<Long> currentUserId) {
         TravelPlaceEntity place = findPlaceById(placeId);
+        boolean viewIncremented = incrementViewsSafely(placeId);
+        currentUserId.ifPresent(userId -> recordViewHistorySafely(placeId, userId));
 
-        this.travelPlaceJpaRepository.incrementViews(placeId);
-        place.setViews((place.getViews() == null ? 0 : place.getViews()) + 1);
-
-        if (currentUserId.isPresent()) {
-            UserEntity user = this.userJpaRepository.getReferenceById(currentUserId.get());
-            this.travelPlaceViewHistoryJpaRepository.save(TravelPlaceViewHistoryEntity.builder()
-                    .place(place)
-                    .user(user)
-                    .build());
-        }
-
-        return buildPlaceDetailResponse(place, currentUserId);
+        Integer displayedViews = (place.getViews() == null ? 0 : place.getViews())
+                + (viewIncremented ? 1 : 0);
+        return buildPlaceDetailResponse(place, currentUserId, displayedViews);
     }
 
     @Transactional(readOnly = true)
@@ -258,16 +266,20 @@ public class TravelPlaceService {
     }
 
     private TravelPlaceDetailResponse buildPlaceDetailResponse(TravelPlaceEntity place, Optional<Long> currentUserId) {
+        return buildPlaceDetailResponse(place, currentUserId, place.getViews());
+    }
+
+    private TravelPlaceDetailResponse buildPlaceDetailResponse(
+            TravelPlaceEntity place,
+            Optional<Long> currentUserId,
+            Integer displayedViews) {
         List<TravelPlaceImageResponse> images = this.travelPlaceImageJpaRepository.findByPlaceIdOrderByMainDescIdAsc(place.getId())
                 .stream()
                 .map(image -> new TravelPlaceImageResponse(image.getId(), image.getImageUrl(), image.isMain()))
                 .toList();
 
         TravelPlaceReviewSummaryResponse reviewSummary = getReviewSummary(place.getId());
-        TravelPlaceReviewResponse myReview = currentUserId
-                .flatMap(userId -> this.travelPlaceReviewJpaRepository.findByPlaceIdAndUserId(place.getId(), userId))
-                .map(this::toReviewResponse)
-                .orElse(null);
+        TravelPlaceReviewResponse myReview = resolveMyReview(place.getId(), currentUserId);
 
         return new TravelPlaceDetailResponse(
                 place.getId(),
@@ -275,7 +287,7 @@ public class TravelPlaceService {
                 place.getDescription(),
                 place.getLat(),
                 place.getLon(),
-                place.getViews(),
+                displayedViews,
                 place.getOpeningTime(),
                 toProvinceResponse(place.getProvince()),
                 images,
@@ -337,23 +349,89 @@ public class TravelPlaceService {
     }
 
     private TravelPlaceReviewSummaryResponse getReviewSummary(Long placeId) {
-        TravelPlaceReviewStatsProjection stats = this.travelPlaceReviewJpaRepository.getStatsByPlaceId(placeId);
-        double averageRating = stats == null || stats.getAverageRating() == null ? 0.0 : stats.getAverageRating();
-        long reviewCount = stats == null || stats.getReviewCount() == null ? 0L : stats.getReviewCount();
-        return new TravelPlaceReviewSummaryResponse(averageRating, reviewCount);
+        try {
+            TravelPlaceReviewStatsProjection stats = this.travelPlaceReviewJpaRepository.getStatsByPlaceId(placeId);
+            double averageRating = stats == null || stats.getAverageRating() == null ? 0.0 : stats.getAverageRating();
+            long reviewCount = stats == null || stats.getReviewCount() == null ? 0L : stats.getReviewCount();
+            return new TravelPlaceReviewSummaryResponse(averageRating, reviewCount);
+        } catch (Exception exception) {
+            log.warn("Unable to load review summary for placeId={}", placeId, exception);
+            return new TravelPlaceReviewSummaryResponse(0.0, 0L);
+        }
     }
 
     private TravelPlaceReviewResponse toReviewResponse(TravelPlaceReviewEntity review) {
-        UserEntity user = review.getUser();
-        String displayName = user.getName() == null || user.getName().isBlank() ? user.getUsername() : user.getName();
+        TravelPlaceReviewAuthorResponse author = resolveReviewAuthor(review);
 
         return new TravelPlaceReviewResponse(
                 review.getId(),
-                new TravelPlaceReviewAuthorResponse(user.getId(), displayName, user.getUsername(), user.getAvatarUrl()),
-                review.getRating(),
-                review.getContent(),
+                author,
+                review.getRating() == null ? 0 : review.getRating(),
+                review.getContent() == null ? "" : review.getContent(),
                 review.getCreatedAt(),
                 review.getUpdatedAt());
+    }
+
+    private TravelPlaceReviewAuthorResponse resolveReviewAuthor(TravelPlaceReviewEntity review) {
+        try {
+            UserEntity user = review.getUser();
+            if (user == null) {
+                return UNKNOWN_REVIEW_AUTHOR;
+            }
+
+            String username = user.getUsername() == null || user.getUsername().isBlank()
+                    ? "travelhub_user"
+                    : user.getUsername();
+            String displayName = user.getName() == null || user.getName().isBlank() ? username : user.getName();
+
+            return new TravelPlaceReviewAuthorResponse(user.getId(), displayName, username, user.getAvatarUrl());
+        } catch (EntityNotFoundException | JpaObjectRetrievalFailureException exception) {
+            log.warn("Unable to resolve review author for reviewId={}", review.getId(), exception);
+            return UNKNOWN_REVIEW_AUTHOR;
+        }
+    }
+
+    private TravelPlaceReviewResponse resolveMyReview(Long placeId, Optional<Long> currentUserId) {
+        if (currentUserId.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return this.travelPlaceReviewJpaRepository.findByPlaceIdAndUserId(placeId, currentUserId.get())
+                    .map(this::toReviewResponse)
+                    .orElse(null);
+        } catch (Exception exception) {
+            log.warn("Unable to resolve current user's review for placeId={} userId={}",
+                    placeId, currentUserId.get(), exception);
+            return null;
+        }
+    }
+
+    private boolean incrementViewsSafely(Long placeId) {
+        try {
+            this.sideEffectTransactionTemplate.executeWithoutResult(
+                    status -> this.travelPlaceJpaRepository.incrementViews(placeId));
+            return true;
+        } catch (RuntimeException exception) {
+            log.warn("Unable to increment travel place views for placeId={}", placeId, exception);
+            return false;
+        }
+    }
+
+    private void recordViewHistorySafely(Long placeId, Long userId) {
+        try {
+            this.sideEffectTransactionTemplate.executeWithoutResult(status -> {
+                TravelPlaceEntity placeReference = this.travelPlaceJpaRepository.getReferenceById(placeId);
+                UserEntity userReference = this.userJpaRepository.getReferenceById(userId);
+                this.travelPlaceViewHistoryJpaRepository.save(TravelPlaceViewHistoryEntity.builder()
+                        .place(placeReference)
+                        .user(userReference)
+                        .build());
+            });
+        } catch (RuntimeException exception) {
+            log.warn("Unable to record travel place view history for placeId={} userId={}",
+                    placeId, userId, exception);
+        }
     }
 
     private Map<Long, String> resolveMainImageByPlaceId(Collection<Long> placeIds) {
