@@ -3,6 +3,7 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,7 +77,9 @@ public class TripEntity {
 
     @Column(name = "invite_code", nullable = false, length = 100)
     private String inviteCode;
-
+    
+    @Column(name = "invite_code_expired_at")
+    private LocalDateTime inviteCodeExpiredAt;
     @ManyToOne(optional = false)
     @JoinColumn(name = "leader_id", nullable = false)
     private UserEntity leader;

@@ -6,5 +6,6 @@ public record TripExpenseContributionResponse(
         Long userId,
         String userName,
         String avatarUrl,
-        BigDecimal amountPaid) {
+        BigDecimal amountPaid,
+        BigDecimal percentage) {
 }

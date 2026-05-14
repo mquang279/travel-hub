@@ -5,7 +5,7 @@ import java.util.List;
 public record TripDetailResponse(
         TripInfoResponse tripInfo,
         String myRole,
-        TripMembersResponse members,
-        List<TripHighlightResponse> highlights,
-        List<TripActivityLogResponse> recentActivities) {
+        List<TripMemberResponse> members,
+        TripDetailHighlightsResponse highlights,
+        List<TripActivityItemResponse> recentActivities) {
 }

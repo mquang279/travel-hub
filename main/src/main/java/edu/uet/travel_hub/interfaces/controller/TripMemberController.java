@@ -2,6 +2,7 @@ package edu.uet.travel_hub.interfaces.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,13 +39,15 @@ public class TripMemberController {
     }
 
     @PostMapping("/requests/{userId}/approve")
-    public ResponseEntity<TripMemberResponse> approveRequest(@PathVariable Long tripId, @PathVariable Long userId) {
-        return ResponseEntity.ok(this.tripMemberService.approveRequest(tripId, userId, this.currentUserProvider.getCurrentUserId()));
+    public ResponseEntity<Void> approveRequest(@PathVariable Long tripId, @PathVariable Long userId) {
+        this.tripMemberService.approveRequest(tripId, userId, this.currentUserProvider.getCurrentUserId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
     @PostMapping("/requests/{userId}/reject")
-    public ResponseEntity<TripMemberResponse> rejectRequest(@PathVariable Long tripId, @PathVariable Long userId) {
-        return ResponseEntity.ok(this.tripMemberService.rejectRequest(tripId, userId, this.currentUserProvider.getCurrentUserId()));
+    public ResponseEntity<Void> rejectRequest(@PathVariable Long tripId, @PathVariable Long userId) {
+        this.tripMemberService.rejectRequest(tripId, userId, this.currentUserProvider.getCurrentUserId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
     @DeleteMapping("/members/{userId}")

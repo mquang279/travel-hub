@@ -64,7 +64,17 @@ public class TripController {
 
     @PostMapping("/trips/join")
     public ResponseEntity<JoinTripResultResponse> joinByInviteCode(@Valid @RequestBody JoinTripRequest request) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
+        return ResponseEntity.status(HttpStatus.CREATED)
                 .body(this.tripService.joinByInviteCode(this.currentUserProvider.getCurrentUserId(), request.inviteCode()));
+    }
+
+    @GetMapping("/trips/{tripId}/invite-code")
+    public ResponseEntity<edu.uet.travel_hub.application.dto.response.TripInviteCodeResponse> getInviteCode(@PathVariable Long tripId) {
+        return ResponseEntity.ok(this.tripService.getInviteCode(tripId, this.currentUserProvider.getCurrentUserId()));
+    }
+
+    @PostMapping("/trips/{tripId}/invite-code/regenerate")
+    public ResponseEntity<edu.uet.travel_hub.application.dto.response.TripInviteCodeResponse> regenerateInviteCode(@PathVariable Long tripId) {
+        return ResponseEntity.ok(this.tripService.regenerateInviteCode(tripId, this.currentUserProvider.getCurrentUserId()));
     }
 }

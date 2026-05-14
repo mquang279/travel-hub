@@ -53,7 +53,7 @@ public class TripMemberService {
         member.setRole(TripMemberRole.MEMBER);
         member.setRespondedAt(java.time.Instant.now());
         TripMemberEntity saved = this.tripMemberJpaRepository.save(member);
-        this.tripActivityLogService.log(trip, trip.getOwner(), "APPROVE_MEMBER", "USER", requesterUserId, "member approved");
+        this.tripActivityLogService.log(trip, trip.getLeader(), "APPROVE_MEMBER", "USER", requesterUserId, "member approved");
         return toMemberResponse(saved);
     }
 
@@ -69,7 +69,7 @@ public class TripMemberService {
         member.setStatus(TripMemberStatus.REJECTED);
         member.setRespondedAt(java.time.Instant.now());
         TripMemberEntity saved = this.tripMemberJpaRepository.save(member);
-        this.tripActivityLogService.log(trip, trip.getOwner(), "REJECT_MEMBER", "USER", requesterUserId, "member rejected");
+        this.tripActivityLogService.log(trip, trip.getLeader(), "REJECT_MEMBER", "USER", requesterUserId, "member rejected");
         return toMemberResponse(saved);
     }
 
@@ -82,12 +82,15 @@ public class TripMemberService {
         if (member.getStatus() != TripMemberStatus.ACTIVE) {
             throw new ForbiddenTripActionException("Member is not active");
         }
-        if (member.getRole() == TripMemberRole.LEADER || memberUserId.equals(currentUserId)) {
-            throw new ForbiddenTripActionException("Leader cannot remove this member");
+        if (member.getRole() == TripMemberRole.LEADER) {
+            throw new IllegalArgumentException("Không thể xóa trưởng nhóm");
+        }
+        if (memberUserId.equals(currentUserId)) {
+            throw new ForbiddenTripActionException("Không thể tự xóa, hãy dùng POST /leave");
         }
 
         this.tripMemberJpaRepository.delete(member);
-        this.tripActivityLogService.log(trip, trip.getOwner(), "REMOVE_MEMBER", "USER", memberUserId, "member removed");
+        this.tripActivityLogService.log(trip, trip.getLeader(), "REMOVE_MEMBER", "USER", memberUserId, "member removed");
     }
 
     @Transactional
@@ -128,7 +131,7 @@ public class TripMemberService {
         }
 
         TripMemberEntity saved = this.tripMemberJpaRepository.save(targetMember);
-        this.tripActivityLogService.log(trip, trip.getOwner(), "UPDATE_MEMBER_ROLE", "USER", memberUserId, "member role updated");
+        this.tripActivityLogService.log(trip, trip.getLeader(), "UPDATE_MEMBER_ROLE", "USER", memberUserId, "member role updated");
         return toMemberResponse(saved);
     }
 
@@ -144,7 +147,8 @@ public class TripMemberService {
         return new TripMemberResponse(
                 member.getUser().getId(),
                 displayName(member),
-                member.getUser().getAvatarUrl());
+                member.getUser().getAvatarUrl(),
+                member.getRole() == null ? null : member.getRole().name());
     }
 
     private String displayName(TripMemberEntity member) {

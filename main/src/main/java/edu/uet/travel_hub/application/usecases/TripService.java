@@ -1,71 +1,97 @@
 package edu.uet.travel_hub.application.usecases;
 
 import java.math.BigDecimal;
-import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
+import edu.uet.travel_hub.application.dto.response.TripActivityItemResponse;
 import edu.uet.travel_hub.application.dto.response.TripActivityLogResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
+import edu.uet.travel_hub.application.dto.response.TripDetailHighlightsResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailResponse;
+import edu.uet.travel_hub.application.dto.response.TripDetailTopExpenseResponse;
+import edu.uet.travel_hub.application.dto.response.TripDetailWinningPollResponse;
 import edu.uet.travel_hub.application.dto.response.TripHighlightResponse;
 import edu.uet.travel_hub.application.dto.response.TripInfoResponse;
 import edu.uet.travel_hub.application.dto.response.TripMemberResponse;
-import edu.uet.travel_hub.application.dto.response.TripMembersResponse;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
 import edu.uet.travel_hub.domain.enums.TripRole;
 import edu.uet.travel_hub.domain.enums.TripMemberStatus;
 import edu.uet.travel_hub.domain.enums.TripMemberRole;
 import edu.uet.travel_hub.domain.enums.TripStatus;
 import edu.uet.travel_hub.domain.mapper.TripRoleMapper;
+import edu.uet.travel_hub.domain.enums.TripExpenseCategory;
+import edu.uet.travel_hub.infrastructure.persistence.entity.TripExpenseEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.TripPollEntity;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.PollVoteCount;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripMemberEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripExpenseJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripActivityLogJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollVoteJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripMemberJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Service
 public class TripService {
-    private static final SecureRandom RANDOM = new SecureRandom();
     private static final int DEFAULT_MAX_MEMBERS = 50;
 
     private final TripJpaRepository tripJpaRepository;
     private final TripMemberJpaRepository tripMemberJpaRepository;
     private final UserJpaRepository userJpaRepository;
+    private final TripExpenseJpaRepository tripExpenseJpaRepository;
+    private final TripPollJpaRepository tripPollJpaRepository;
+    private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
     private final TripActivityLogJpaRepository tripActivityLogJpaRepository;
     private final TripActivityLogService tripActivityLogService;
+    private final edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService;
 
     public TripService(
             TripJpaRepository tripJpaRepository,
             TripMemberJpaRepository tripMemberJpaRepository,
             UserJpaRepository userJpaRepository,
+            TripExpenseJpaRepository tripExpenseJpaRepository,
+            TripPollJpaRepository tripPollJpaRepository,
+            TripPollVoteJpaRepository tripPollVoteJpaRepository,
             TripActivityLogJpaRepository tripActivityLogJpaRepository,
-            TripActivityLogService tripActivityLogService) {
+            TripActivityLogService tripActivityLogService,
+            edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService) {
         this.tripJpaRepository = tripJpaRepository;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
         this.userJpaRepository = userJpaRepository;
+        this.tripExpenseJpaRepository = tripExpenseJpaRepository;
+        this.tripPollJpaRepository = tripPollJpaRepository;
+        this.tripPollVoteJpaRepository = tripPollVoteJpaRepository;
         this.tripActivityLogJpaRepository = tripActivityLogJpaRepository;
         this.tripActivityLogService = tripActivityLogService;
+        this.inviteCodeService = inviteCodeService;
     }
 
     public TripEntity findTrip(Long tripId) {
         return this.tripJpaRepository.findById(tripId)
-                .orElseThrow(() -> new IllegalArgumentException("Trip not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
     }
 
     public edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity findUser(Long userId) {
         return this.userJpaRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     public TripEntity requireActiveMemberTrip(Long tripId, Long currentUserId) {
@@ -127,26 +153,18 @@ public class TripService {
             TripMemberStatus.ACTIVE);
 
         List<TripMemberResponse> members = activeMembers.stream()
-            .map(this::toMemberResponse)
-            .toList();
-
-        List<TripHighlightResponse> highlights = activeMembers.stream()
             .limit(5)
-            .map(member -> new TripHighlightResponse(
-                displayName(member.getUser()),
-                member.getUser().getAvatarUrl()))
+            .map(this::toMemberResponseWithRole)
             .toList();
 
-        List<TripActivityLogResponse> recentActivities = this.tripActivityLogJpaRepository
+        TripDetailHighlightsResponse highlights = buildHighlights(tripId);
+
+        List<TripActivityItemResponse> recentActivities = this.tripActivityLogJpaRepository
             .findTop20ByTripIdOrderByCreatedAtDescIdDesc(tripId)
             .stream()
-            .map(log -> new TripActivityLogResponse(
-                log.getId(),
-                log.getActionType(),
-                log.getTargetType(),
-                log.getTargetId(),
-                log.getDescription(),
-                log.getCreatedAt()))
+            .map(this::toActivityItem)
+            .filter(item -> item != null)
+            .limit(5)
             .toList();
 
         TripInfoResponse tripInfo = new TripInfoResponse(
@@ -163,13 +181,27 @@ public class TripService {
             trip.getInviteCode(),
             DEFAULT_MAX_MEMBERS);
 
-        TripMembersResponse membersResponse = new TripMembersResponse(
-            members.size(),
-            DEFAULT_MAX_MEMBERS,
-            members);
-
         TripRole myRole = TripRoleMapper.fromMemberRole(membership.getRole());
-        return new TripDetailResponse(tripInfo, myRole.name(), membersResponse, highlights, recentActivities);
+        return new TripDetailResponse(tripInfo, myRole.name(), members, highlights, recentActivities);
+    }
+
+    @Transactional(readOnly = true)
+    public edu.uet.travel_hub.application.dto.response.TripInviteCodeResponse getInviteCode(Long tripId, Long currentUserId) {
+        TripEntity trip = requireActiveMemberTrip(tripId, currentUserId);
+        String code = trip.getInviteCode();
+        String link = "tripapp://join?code=" + code;
+        return new edu.uet.travel_hub.application.dto.response.TripInviteCodeResponse(code, link, trip.getInviteCodeExpiredAt());
+    }
+
+    @Transactional
+    public edu.uet.travel_hub.application.dto.response.TripInviteCodeResponse regenerateInviteCode(Long tripId, Long currentUserId) {
+        TripEntity trip = requireLeaderTrip(tripId, currentUserId);
+        String newCode = this.inviteCodeService.generateInviteCode();
+        trip.setInviteCode(newCode);
+        trip.setInviteCodeExpiredAt(null);
+        TripEntity saved = this.tripJpaRepository.save(trip);
+        String link = "tripapp://join?code=" + newCode;
+        return new edu.uet.travel_hub.application.dto.response.TripInviteCodeResponse(newCode, link, saved.getInviteCodeExpiredAt());
     }
 
     @Transactional
@@ -185,7 +217,7 @@ public class TripService {
                 .budgetMin(request.budgetMin() == null ? null : BigDecimal.valueOf(request.budgetMin()))
                 .budgetMax(request.budgetMax() == null ? null : BigDecimal.valueOf(request.budgetMax()))
                 .leader(leader)
-                .inviteCode(generateInviteCode())
+            .inviteCode(this.inviteCodeService.generateInviteCode())
                 .status(TripStatus.fromDates(request.startDate(), request.endDate()))
                 .build();
 
@@ -224,38 +256,39 @@ public class TripService {
     public JoinTripResultResponse joinByInviteCode(Long currentUserId, String rawInviteCode) {
         String inviteCode = normalizeRequired(rawInviteCode, "inviteCode").toUpperCase(Locale.ROOT);
         TripEntity trip = this.tripJpaRepository.findByInviteCode(inviteCode)
-                .orElseThrow(() -> new ResourceNotFoundException("Invite code is invalid"));
+                .orElseThrow(() -> new IllegalArgumentException("Mã mời không hợp lệ"));
         UserEntity currentUser = findUser(currentUserId);
 
+        if (trip.getInviteCodeExpiredAt() != null && trip.getInviteCodeExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Mã mời đã hết hạn");
+        }
+
         TripMemberEntity member = this.tripMemberJpaRepository.findByTripIdAndUserId(trip.getId(), currentUserId)
-                .orElseGet(() -> this.tripMemberJpaRepository.save(TripMemberEntity.builder()
+                .orElseGet(() -> TripMemberEntity.builder()
                         .trip(trip)
                         .user(currentUser)
                         .role(TripMemberRole.MEMBER)
                         .status(TripMemberStatus.PENDING)
-                        .build()));
+                        .build());
 
         if (member.getStatus() == TripMemberStatus.ACTIVE) {
-            return new JoinTripResultResponse(trip.getId(), member.getStatus().name(), "Already a member");
+            throw new DataIntegrityViolationException("Bạn đã là thành viên của chuyến đi này");
         }
 
         if (member.getStatus() == TripMemberStatus.PENDING) {
-            return new JoinTripResultResponse(trip.getId(), member.getStatus().name(), "Join request already pending");
+            throw new DataIntegrityViolationException("Yêu cầu tham gia đã được gửi");
         }
 
         member.setStatus(TripMemberStatus.PENDING);
         member.setRole(TripMemberRole.MEMBER);
         member.setRequestedAt(java.time.Instant.now());
         member.setRespondedAt(null);
-        this.tripMemberJpaRepository.save(member);
+        TripMemberEntity savedMember = this.tripMemberJpaRepository.save(member);
         this.tripActivityLogService.log(trip, currentUser, "REQUEST_JOIN", "USER", currentUserId, "join request submitted");
-        return new JoinTripResultResponse(trip.getId(), member.getStatus().name(), "Join request submitted");
+        return new JoinTripResultResponse(trip.getId(), savedMember.getStatus().name(), "Yêu cầu tham gia đã được gửi, chờ trưởng nhóm phê duyệt");
     }
 
-    private String generateInviteCode() {
-        int value = 100000 + RANDOM.nextInt(900000);
-        return "TRIP" + value;
-    }
+    // invite code generation delegated to InviteCodeService
 
     private boolean isActiveMember(TripEntity trip, Long currentUserId) {
         return trip.getMembers().stream().anyMatch(member ->
@@ -303,7 +336,53 @@ public class TripService {
         return new TripMemberResponse(
                 member.getUser().getId(),
                 displayName(member.getUser()),
-                member.getUser().getAvatarUrl());
+                member.getUser().getAvatarUrl(),
+                member.getRole() == null ? null : member.getRole().name());
+    }
+
+    private TripMemberResponse toMemberResponseWithRole(TripMemberEntity member) {
+        return toMemberResponse(member);
+    }
+
+    private TripDetailHighlightsResponse buildHighlights(Long tripId) {
+        TripDetailTopExpenseResponse topExpense = this.tripExpenseJpaRepository.findByTripIdOrderByExpenseDateDescIdDesc(tripId)
+                .stream()
+                .max(Comparator.comparing(TripExpenseEntity::getAmount))
+                .map(expense -> new TripDetailTopExpenseResponse(expense.getTitle(), expense.getAmount()))
+                .orElse(null);
+
+        Map<Long, Long> voteCounts = this.tripPollVoteJpaRepository.countVotesByPollForTrip(tripId).stream()
+                .collect(Collectors.toMap(PollVoteCount::getPollId, PollVoteCount::getCount));
+        TripDetailWinningPollResponse winningPoll = this.tripPollJpaRepository.findByTripIdOrderByCreatedAtDesc(tripId).stream()
+                .map(poll -> Map.entry(poll, voteCounts.getOrDefault(poll.getId(), 0L)))
+                .filter(entry -> entry.getValue() > 0)
+                .max(Map.Entry.comparingByValue())
+                .map(entry -> new TripDetailWinningPollResponse(entry.getKey().getTitle(), entry.getValue().intValue()))
+                .orElse(null);
+
+        return new TripDetailHighlightsResponse(topExpense, winningPoll);
+    }
+
+    private TripActivityItemResponse toActivityItem(edu.uet.travel_hub.infrastructure.persistence.entity.TripActivityLogEntity log) {
+        String type = mapActivityType(log.getActionType(), log.getTargetType());
+        if (type == null) {
+            return null;
+        }
+        String actorName = log.getActor() == null ? null : displayName(log.getActor());
+        return new TripActivityItemResponse(type, log.getDescription(), actorName, log.getCreatedAt());
+    }
+
+    private String mapActivityType(String actionType, String targetType) {
+        if (actionType == null) {
+            return null;
+        }
+        return switch (actionType) {
+            case "ADD_EXPENSE" -> "EXPENSE_CREATED";
+            case "CREATE_POLL" -> "POLL_CREATED";
+            case "APPROVE_MEMBER", "REQUEST_JOIN" -> "MEMBER_JOINED";
+            case "UPDATE_TRIP" -> "TRIP_UPDATED";
+            default -> null;
+        };
     }
 
     private String displayName(UserEntity user) {

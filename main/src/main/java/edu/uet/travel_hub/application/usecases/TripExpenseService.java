@@ -56,14 +56,35 @@ public class TripExpenseService {
                         expense -> expense.getPaidBy().getId(),
                         Collectors.mapping(TripExpenseEntity::getAmount, Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))));
 
-        List<TripExpenseContributionResponse> contributionResponses = expenses.stream()
-                .map(TripExpenseEntity::getPaidBy)
-                .distinct()
-                .map(user -> new TripExpenseContributionResponse(
-                        user.getId(),
-                        displayName(user),
-                        user.getAvatarUrl(),
-                        contributions.getOrDefault(user.getId(), BigDecimal.ZERO)))
+        long approvedMemberCount = this.tripMemberJpaRepository.countByTripIdAndStatus(tripId, TripMemberStatus.ACTIVE);
+        if (approvedMemberCount == 0) {
+            approvedMemberCount = 1; // avoid div by zero, fallback
+        }
+
+        java.math.BigDecimal perPersonAmount = BigDecimal.ZERO;
+        if (totalSpent.compareTo(BigDecimal.ZERO) > 0) {
+            perPersonAmount = totalSpent.divide(BigDecimal.valueOf(approvedMemberCount), 2, java.math.RoundingMode.HALF_UP);
+        }
+
+        BigDecimal myPaid = contributions.getOrDefault(currentUserId, BigDecimal.ZERO);
+        BigDecimal myBalance = myPaid.subtract(perPersonAmount);
+
+        List<TripExpenseContributionResponse> contributionResponses = contributions.entrySet().stream()
+                .map(e -> {
+                    BigDecimal amount = e.getValue();
+                    BigDecimal percentage = BigDecimal.ZERO;
+                    if (totalSpent.compareTo(BigDecimal.ZERO) > 0) {
+                        percentage = amount.divide(totalSpent, 4, java.math.RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+                    }
+                    Long userId = e.getKey();
+                    edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity user = this.tripService.findUser(userId);
+                    return new TripExpenseContributionResponse(
+                            userId,
+                            displayName(user),
+                            user.getAvatarUrl(),
+                            amount,
+                            percentage);
+                })
                 .toList();
 
         List<TripExpenseTransactionResponse> transactionResponses = expenses.stream()
@@ -78,7 +99,7 @@ public class TripExpenseService {
                 .toList();
 
         return new TripExpenseResponse(
-                new TripExpenseSummaryResponse(totalSpent, trip.getBudgetMin(), trip.getBudgetMax()),
+                new TripExpenseSummaryResponse(totalSpent, perPersonAmount, myBalance),
                 contributionResponses,
                 transactionResponses);
     }
