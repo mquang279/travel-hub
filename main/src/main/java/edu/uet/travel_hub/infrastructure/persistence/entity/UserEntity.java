@@ -16,6 +16,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -67,6 +68,12 @@ public class UserEntity {
     @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "interest", nullable = false)
     private List<String> interests;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<DeviceTokenEntity> deviceTokens;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<NotificationEntity> notifications;
 
     private String destination;
 
