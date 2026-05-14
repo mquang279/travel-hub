@@ -93,9 +93,14 @@ public class TravelPlaceService {
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "id"));
         Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.search(provinceId, normalizeKeyword(keyword), pageable);
 
-        Map<Long, String> mainImages = resolveMainImageByPlaceId(places.stream().map(TravelPlaceEntity::getId).toList());
+        List<Long> placeIds = places.stream().map(TravelPlaceEntity::getId).toList();
+        Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
+        Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
         List<TravelPlaceListItemResponse> data = places.getContent().stream()
-                .map(place -> toListItemResponse(place, mainImages.get(place.getId()), getReviewSummary(place.getId())))
+                .map(place -> toListItemResponse(
+                        place,
+                        mainImages.get(place.getId()),
+                        reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
                 .toList();
 
         return new PaginationResponse<>(places.getNumber(), places.getSize(), places.getTotalPages(),
@@ -253,12 +258,16 @@ public class TravelPlaceService {
                 .stream()
                 .collect(Collectors.toMap(TravelPlaceEntity::getId, place -> place));
         Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
+        Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
 
         List<TravelPlaceListItemResponse> data = placeIds.stream()
                 .map(placeById::get)
                 .filter(Objects::nonNull)
                 .sorted((left, right) -> Integer.compare(orderByPlaceId.get(left.getId()), orderByPlaceId.get(right.getId())))
-                .map(place -> toListItemResponse(place, mainImages.get(place.getId()), getReviewSummary(place.getId())))
+                .map(place -> toListItemResponse(
+                        place,
+                        mainImages.get(place.getId()),
+                        reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
                 .toList();
 
         int totalPages = data.isEmpty() ? 0 : safePage + 1;
@@ -358,6 +367,28 @@ public class TravelPlaceService {
             log.warn("Unable to load review summary for placeId={}", placeId, exception);
             return new TravelPlaceReviewSummaryResponse(0.0, 0L);
         }
+    }
+
+    private Map<Long, TravelPlaceReviewSummaryResponse> resolveReviewSummaryByPlaceId(Collection<Long> placeIds) {
+        if (placeIds == null || placeIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, TravelPlaceReviewSummaryResponse> summaries = new LinkedHashMap<>();
+        for (TravelPlaceReviewStatsProjection stats : this.travelPlaceReviewJpaRepository.getStatsByPlaceIds(placeIds)) {
+            Long placeId = stats.getPlaceId();
+            if (placeId == null) {
+                continue;
+            }
+            summaries.put(placeId, new TravelPlaceReviewSummaryResponse(
+                    stats.getAverageRating() == null ? 0.0 : stats.getAverageRating(),
+                    stats.getReviewCount() == null ? 0L : stats.getReviewCount()));
+        }
+        return summaries;
+    }
+
+    private TravelPlaceReviewSummaryResponse emptyReviewSummary() {
+        return new TravelPlaceReviewSummaryResponse(0.0, 0L);
     }
 
     private TravelPlaceReviewResponse toReviewResponse(TravelPlaceReviewEntity review) {

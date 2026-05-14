@@ -17,7 +17,7 @@ public class PostMapper {
     }
 
     public PostResponse toDto(PostModel model) {
-        UserModel userModel = this.userRepository.findById(model.getUserId()).get();
+        String ownerUsername = resolveOwnerUsername(model);
         PostResponse response = PostResponse.builder()
                 .description(model.getDescription())
                 .imageUrls(model.getImageUrls())
@@ -29,13 +29,25 @@ public class PostMapper {
                 .isLiked(model.isLiked())
                 .travelPlaceId(model.getTravelPlaceId())
                 .location(model.getLocation())
-                .owner(toUserResponse(userModel)).build();
+                .owner(toUserResponse(model.getUserId(), ownerUsername)).build();
         return response;
     }
 
-    private UserResponse toUserResponse(UserModel user) {
+    private String resolveOwnerUsername(PostModel model) {
+        if (model.getOwnerUsername() != null && !model.getOwnerUsername().isBlank()) {
+            return model.getOwnerUsername();
+        }
+        if (model.getUserId() == null) {
+            return null;
+        }
+        return this.userRepository.findById(model.getUserId())
+                .map(UserModel::getUsername)
+                .orElse(null);
+    }
+
+    private UserResponse toUserResponse(Long userId, String username) {
         return new UserResponse(
-                user.getId(),
-                user.getUsername());
+                userId,
+                username);
     }
 }

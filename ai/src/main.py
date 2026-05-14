@@ -10,6 +10,10 @@ from src.entity.embedding import (
     EmbeddingResponse as VectorEmbeddingResponse,
     PreferenceEmbeddingRequest,
 )
+from src.entity.itinerary import (
+    ItineraryAiProposalRequest,
+    ItineraryAiProposalResponse,
+)
 from src.entity.content_embedding import PostEmbeddingResponse, PostEmbeddingUpsertRequest
 from src.entity.preference import (
     PreferenceProfileCommand,
@@ -93,7 +97,11 @@ async def lifespan(app: FastAPI):
     )
     await init_db(app.state.pg_pool)
     app.state.itinerary_service = itinerary.new_itinerary_service()
-    app.state.embedding_service = EmbeddingService()
+    app.state.embedding_service = EmbeddingService(
+        model_name=settings.embedding_model_name,
+        dimensions=settings.embedding_dimensions,
+        device=settings.embedding_device,
+    )
     app.state.embedding_text_composer = EmbeddingTextComposer()
     app.state.content_embedding_processor = ContentEmbeddingProcessor(
         embedding_service=app.state.embedding_service
@@ -213,6 +221,18 @@ async def get_preferences(user_id: int, request: Request):
     if profile is None:
         raise HTTPException(status_code=404, detail="Preferences not found")
     return profile
+
+
+@app.post("/api/itineraries/proposals", response_model=ItineraryAiProposalResponse)
+async def create_itinerary_proposal(
+    payload: ItineraryAiProposalRequest,
+    request: Request,
+):
+    pg_pool = request.app.state.pg_pool
+    return await request.app.state.itinerary_service.create_proposal(
+        payload=payload,
+        pool=pg_pool,
+    )
 
 
 @app.get("/chat")
