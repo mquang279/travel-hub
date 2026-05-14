@@ -4,6 +4,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .env
+main/src/main/resources/travel-hub-b557d-firebase-adminsdk-fbsvc-2c022ec6e4.json
 
 ### STS ###
 .apt_generated
