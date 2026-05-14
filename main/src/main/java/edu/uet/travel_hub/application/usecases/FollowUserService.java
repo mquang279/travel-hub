@@ -7,6 +7,7 @@ import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
 import edu.uet.travel_hub.application.port.in.FollowUserUseCase;
 import edu.uet.travel_hub.application.port.out.FollowRepository;
 import edu.uet.travel_hub.application.port.out.UserRepository;
+import edu.uet.travel_hub.domain.enums.NotificationType;
 import edu.uet.travel_hub.domain.model.FollowModel;
 import edu.uet.travel_hub.domain.model.UserModel;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +45,7 @@ public class FollowUserService implements FollowUserUseCase {
                     .orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
             String title = "New follower";
             String body = follower.getUsername() + " started following you";
-            this.saveNotificationService.save(targetUserId, title, body);
+            this.saveNotificationService.save(targetUserId, title, body, NotificationType.FOLLOW, currentUserId);
         }
     }
 }

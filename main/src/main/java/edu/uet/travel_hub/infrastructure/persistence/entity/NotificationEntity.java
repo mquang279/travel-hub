@@ -38,6 +38,8 @@ public class NotificationEntity {
 
     private Instant readAt;
 
+    private Long targetId;
+
     @Enumerated(EnumType.STRING)
     private NotificationType type;
 

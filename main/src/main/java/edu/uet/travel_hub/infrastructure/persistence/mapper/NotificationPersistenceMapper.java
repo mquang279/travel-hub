@@ -13,6 +13,7 @@ public class NotificationPersistenceMapper {
                 .body(entity.getBody())
                 .isRead(entity.getIsRead())
                 .createdAt(entity.getCreatedAt())
+                .targetId(entity.getTargetId())
                 .build();
     }
 
@@ -20,6 +21,7 @@ public class NotificationPersistenceMapper {
         return NotificationEntity.builder()
                 .title(model.title())
                 .body(model.body())
+                .targetId(model.targetId())
                 .isRead(model.isRead()).build();
     }
 }

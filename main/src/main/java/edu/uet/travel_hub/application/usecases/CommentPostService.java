@@ -8,6 +8,7 @@ import edu.uet.travel_hub.application.port.out.CommentRepository;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.application.port.out.UserRepository;
+import edu.uet.travel_hub.domain.enums.NotificationType;
 import edu.uet.travel_hub.domain.model.CommentModel;
 import edu.uet.travel_hub.domain.model.PostModel;
 import lombok.AllArgsConstructor;
@@ -35,7 +36,7 @@ public class CommentPostService implements CommentPostUseCase {
                 .post(this.postRepository.findById(postId).get()).build();
         String title = "New comment on your post";
         String body = commenterUsername + " commented on your post";
-        this.saveNotificationService.save(postModel.getUserId(), title, body);
+        this.saveNotificationService.save(postModel.getUserId(), title, body, NotificationType.COMMENT, postId);
         return this.commentRepository.save(commentModel);
     }
 }

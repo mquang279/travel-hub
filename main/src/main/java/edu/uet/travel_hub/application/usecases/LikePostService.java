@@ -9,6 +9,7 @@ import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.LikeRepository;
 import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.application.port.out.UserRepository;
+import edu.uet.travel_hub.domain.enums.NotificationType;
 import edu.uet.travel_hub.domain.model.PostModel;
 import edu.uet.travel_hub.domain.model.UserModel;
 import lombok.AllArgsConstructor;
@@ -36,7 +37,7 @@ public class LikePostService implements LikePostUseCase {
 
             String title = "New like on your post";
             String body = likedByUser.getUsername() + " liked your post";
-            this.saveNotificationService.save(postModel.getUserId(), title, body);
+            this.saveNotificationService.save(postModel.getUserId(), title, body, NotificationType.LIKE, userId);
         }
 
         int likeCount = this.postRepository.getLikeCount(postId);
