@@ -8,7 +8,9 @@ import edu.uet.travel_hub.application.port.in.LikePostUseCase;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.LikeRepository;
 import edu.uet.travel_hub.application.port.out.PostRepository;
+import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
+import edu.uet.travel_hub.domain.model.UserModel;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -18,6 +20,7 @@ public class LikePostService implements LikePostUseCase {
     private final PostRepository postRepository;
     private final SaveNotificationService saveNotificationService;
     private final CurrentUserProvider currentUserProvider;
+    private final UserRepository userRepository;
 
     @Override
     public LikePostResponse like(Long postId) {
@@ -26,11 +29,13 @@ public class LikePostService implements LikePostUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
 
         if (!this.likeRepository.exists(userId, postId)) {
+            UserModel likedByUser = this.userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
             this.likeRepository.save(userId, postId);
             this.postRepository.increaseLikeCount(postId);
 
-            String title = "New notification";
-            String body = "Your post received a new like";
+            String title = "New like on your post";
+            String body = likedByUser.getUsername() + " liked your post";
             this.saveNotificationService.save(postModel.getUserId(), title, body);
         }
 
