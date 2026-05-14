@@ -1,7 +1,5 @@
 package edu.uet.travel_hub.application.usecases;
 
-import java.util.List;
-
 import org.springframework.stereotype.Service;
 
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
@@ -23,4 +21,9 @@ public class GetNotificationsService implements GetNotificationsUseCase {
         return this.notificationRepository.get(userId, page, pageSize);
     }
 
+    @Override
+    public PaginationResponse<NotificationModel> getUnread(int page, int pageSize) {
+        Long userId = this.currentUserProvider.getCurrentUserId();
+        return this.notificationRepository.getUnread(userId, page, pageSize);
+    }
 }

@@ -1,15 +1,9 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.impl;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
-
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
 
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.port.out.NotificationRepository;
@@ -47,6 +41,21 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 pageSize,
                 Sort.by(Sort.Direction.DESC, "createdAt", "id"));
         Page<NotificationEntity> notifications = this.notificationJpaRepository.findByUserId(userId, request);
+        return toPaginationResponse(notifications);
+    }
+
+    @Override
+    public PaginationResponse<NotificationModel> getUnread(Long userId, int page, int pageSize) {
+        PageRequest request = PageRequest.of(
+                page,
+                pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        Page<NotificationEntity> notifications = this.notificationJpaRepository.findByUserIdAndIsReadFalse(userId,
+                request);
+        return toPaginationResponse(notifications);
+    }
+
+    private PaginationResponse<NotificationModel> toPaginationResponse(Page<NotificationEntity> notifications) {
         return new PaginationResponse<NotificationModel>(
                 notifications.getNumber(),
                 notifications.getSize(),
@@ -54,5 +63,4 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 notifications.getTotalElements(),
                 notifications.getContent().stream().map(mapper::toModel).toList());
     }
-
 }

@@ -7,8 +7,6 @@ import edu.uet.travel_hub.application.port.in.GetNotificationsUseCase;
 import edu.uet.travel_hub.domain.model.NotificationModel;
 import lombok.AllArgsConstructor;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,4 +25,13 @@ public class NotificationController {
         PaginationResponse<NotificationModel> notifications = this.getNotificationsUseCase.get(page, pageSize);
         return ResponseEntity.ok().body(notifications);
     }
+
+    @GetMapping("/unread")
+    public ResponseEntity<PaginationResponse<NotificationModel>> getUnreadNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        PaginationResponse<NotificationModel> notifications = this.getNotificationsUseCase.getUnread(page, pageSize);
+        return ResponseEntity.ok().body(notifications);
+    }
+
 }
