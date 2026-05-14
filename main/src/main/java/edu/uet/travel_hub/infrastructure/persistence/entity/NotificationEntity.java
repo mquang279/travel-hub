@@ -2,8 +2,10 @@ package edu.uet.travel_hub.infrastructure.persistence.entity;
 
 import java.time.Instant;
 
-
+import edu.uet.travel_hub.domain.enums.NotificationType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -35,6 +37,9 @@ public class NotificationEntity {
     private Boolean isRead;
 
     private Instant readAt;
+
+    @Enumerated(EnumType.STRING)
+    private NotificationType type;
 
     private Instant createdAt;
 

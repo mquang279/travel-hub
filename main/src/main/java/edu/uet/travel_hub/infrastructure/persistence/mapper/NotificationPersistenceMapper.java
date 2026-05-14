@@ -1,8 +1,11 @@
 package edu.uet.travel_hub.infrastructure.persistence.mapper;
 
+import org.springframework.stereotype.Component;
+
 import edu.uet.travel_hub.domain.model.NotificationModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.NotificationEntity;
 
+@Component
 public class NotificationPersistenceMapper {
     public NotificationModel toModel(NotificationEntity entity) {
         return NotificationModel.builder()

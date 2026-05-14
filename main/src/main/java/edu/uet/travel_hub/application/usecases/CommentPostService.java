@@ -24,14 +24,17 @@ public class CommentPostService implements CommentPostUseCase {
     @Override
     public CommentModel comment(Long postId, CommentRequest request) {
         Long userId = this.currentUserProvider.getCurrentUserId();
-        PostModel postModel = this.postRepository.findById(userId).get();
+        PostModel postModel = this.postRepository.findById(postId).get();
+        String commenterUsername = this.userRepository.findById(userId)
+                .map(user -> user.getUsername())
+                .orElse("Someone");
         CommentModel commentModel = CommentModel
                 .builder()
                 .content(request.content())
                 .owner(this.userRepository.findById(userId).get())
                 .post(this.postRepository.findById(postId).get()).build();
-        String title = "New notification";
-        String body = "Your post received a new comment";
+        String title = "New comment on your post";
+        String body = commenterUsername + " commented on your post";
         this.saveNotificationService.save(postModel.getUserId(), title, body);
         return this.commentRepository.save(commentModel);
     }

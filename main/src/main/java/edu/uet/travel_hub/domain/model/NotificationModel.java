@@ -2,9 +2,10 @@ package edu.uet.travel_hub.domain.model;
 
 import java.time.Instant;
 
+import edu.uet.travel_hub.domain.enums.NotificationType;
 import lombok.Builder;
 
 @Builder
-public record NotificationModel(String title, String body, Boolean isRead, Instant createdAt) {
+public record NotificationModel(String title, String body, Boolean isRead, NotificationType type, Instant createdAt) {
 
 }
