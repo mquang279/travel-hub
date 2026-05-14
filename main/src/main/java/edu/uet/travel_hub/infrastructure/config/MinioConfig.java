@@ -37,6 +37,7 @@ public class MinioConfig {
         return MinioClient
                 .builder()
                 .endpoint(url)
+                .region(region)
                 .credentials(username, password)
                 .build();
     }
@@ -46,6 +47,7 @@ public class MinioConfig {
         return MinioClient
                 .builder()
                 .endpoint(publicUrl)
+                .region(region)
                 .credentials(username, password)
                 .build();
     }
