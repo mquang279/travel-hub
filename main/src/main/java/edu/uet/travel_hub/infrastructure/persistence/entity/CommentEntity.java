@@ -14,16 +14,23 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"post", "user"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Table(name = "comments")
 @AllArgsConstructor
 @Builder
 @NoArgsConstructor
 public class CommentEntity {
+    @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

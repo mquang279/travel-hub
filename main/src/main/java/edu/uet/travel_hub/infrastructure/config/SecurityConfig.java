@@ -52,6 +52,8 @@ public class SecurityConfig {
                         (authz) -> authz
                                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                                 .requestMatchers("/api/auth/logout").authenticated()
+                                .requestMatchers("/api/users/me/dashboard").authenticated()
+                                .requestMatchers("/api/trips/**").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/posts").authenticated()
                                 .requestMatchers(HttpMethod.PUT, "/api/posts/*").authenticated()

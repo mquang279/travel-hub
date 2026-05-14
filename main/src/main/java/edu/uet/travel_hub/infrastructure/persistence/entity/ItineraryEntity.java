@@ -23,7 +23,10 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -32,11 +35,15 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_itinerary_owner_group_name", columnNames = { "owner_id", "group_name" })
         })
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"owner", "days"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ItineraryEntity {
+    @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

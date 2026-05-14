@@ -1,12 +1,14 @@
 package edu.uet.travel_hub.interfaces.handler;
 
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
+import edu.uet.travel_hub.application.exception.ForbiddenTripActionException;
 import edu.uet.travel_hub.application.exception.UnauthorizedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -26,19 +28,38 @@ public class GlobalExceptionHandler {
 		return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
 	}
 
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+		return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage());
+	}
+
 	@ExceptionHandler(UnauthorizedException.class)
 	public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
 		return buildErrorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
 	}
 
+	@ExceptionHandler(ForbiddenTripActionException.class)
+	public ResponseEntity<Map<String, Object>> handleForbiddenTripAction(ForbiddenTripActionException ex) {
+		return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-		String message = ex.getBindingResult()
-				.getFieldErrors()
-				.stream()
-				.map(error -> error.getField() + ": " + error.getDefaultMessage())
-				.collect(Collectors.joining(", "));
-		return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
+		var fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+				.map(error -> Map.of("field", error.getField(), "message", error.getDefaultMessage()))
+				.toList();
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("timestamp", Instant.now().toString());
+		body.put("status", HttpStatus.BAD_REQUEST.value());
+		body.put("error", HttpStatus.BAD_REQUEST.getReasonPhrase());
+		body.put("message", "Validation failed");
+		body.put("errors", fieldErrors);
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+	}
+
+	@ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+	public ResponseEntity<Map<String, Object>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+		return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
 	}
 
 	private ResponseEntity<Map<String, Object>> buildErrorResponse(HttpStatus status, String message) {
