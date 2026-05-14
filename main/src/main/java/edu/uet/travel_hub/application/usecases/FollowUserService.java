@@ -8,6 +8,7 @@ import edu.uet.travel_hub.application.port.in.FollowUserUseCase;
 import edu.uet.travel_hub.application.port.out.FollowRepository;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.FollowModel;
+import edu.uet.travel_hub.domain.model.UserModel;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 public class FollowUserService implements FollowUserUseCase {
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
+    private final SaveNotificationService saveNotificationService;
 
     @Override
     @Transactional
@@ -37,6 +39,12 @@ public class FollowUserService implements FollowUserUseCase {
             followRepository.save(new FollowModel(null, currentUserId, targetUserId));
             userRepository.incrementFollowing(currentUserId);
             userRepository.incrementFollowers(targetUserId);
+
+            UserModel follower = userRepository.findById(currentUserId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
+            String title = "New follower";
+            String body = follower.getUsername() + " started following you";
+            this.saveNotificationService.save(targetUserId, title, body);
         }
     }
 }
