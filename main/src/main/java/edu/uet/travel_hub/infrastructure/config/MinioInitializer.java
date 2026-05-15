@@ -1,6 +1,7 @@
 package edu.uet.travel_hub.infrastructure.config;
 
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
@@ -9,6 +10,7 @@ import io.minio.SetBucketPolicyArgs;
 import jakarta.annotation.PostConstruct;
 
 @Component
+@ConditionalOnProperty(name = "minio.initializer.enabled", havingValue = "true", matchIfMissing = true)
 public class MinioInitializer {
     private final MinioConfig minioConfig;
 
