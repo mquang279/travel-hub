@@ -1,5 +1,6 @@
 package edu.uet.travel_hub.application.usecases;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -196,14 +197,26 @@ public class TravelPlaceService {
 
     @Transactional(readOnly = true)
     public PaginationResponse<TravelPlaceViewHistoryResponse> getViewHistory(Long currentUserId, int page, int pageSize) {
-        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "viewedAt", "id"));
-        Page<TravelPlaceViewHistoryEntity> history = this.travelPlaceViewHistoryJpaRepository
-                .findByUserIdOrderByViewedAtDescIdDesc(currentUserId, pageable);
+        int safePage = Math.max(page, 0);
+        int safePageSize = Math.max(pageSize, 1);
+        List<TravelPlaceViewHistoryEntity> compactedHistory = new ArrayList<>();
+        Long previousPlaceId = null;
+        for (TravelPlaceViewHistoryEntity item : this.travelPlaceViewHistoryJpaRepository
+                .findAllByUserIdOrderByViewedAtDescIdDesc(currentUserId)) {
+            Long placeId = item.getPlace().getId();
+            if (!Objects.equals(previousPlaceId, placeId)) {
+                compactedHistory.add(item);
+            }
+            previousPlaceId = placeId;
+        }
+        int fromIndex = Math.min(safePage * safePageSize, compactedHistory.size());
+        int toIndex = Math.min(fromIndex + safePageSize, compactedHistory.size());
+        List<TravelPlaceViewHistoryEntity> history = compactedHistory.subList(fromIndex, toIndex);
 
         Map<Long, String> mainImages = resolveMainImageByPlaceId(
-                history.getContent().stream().map(item -> item.getPlace().getId()).toList());
+                history.stream().map(item -> item.getPlace().getId()).toList());
 
-        List<TravelPlaceViewHistoryResponse> data = history.getContent().stream()
+        List<TravelPlaceViewHistoryResponse> data = history.stream()
                 .map(item -> new TravelPlaceViewHistoryResponse(
                         item.getPlace().getId(),
                         item.getPlace().getName(),
@@ -212,8 +225,11 @@ public class TravelPlaceService {
                         item.getViewedAt()))
                 .toList();
 
-        return new PaginationResponse<>(history.getNumber(), history.getSize(), history.getTotalPages(),
-                history.getTotalElements(), data);
+        int totalPages = compactedHistory.isEmpty()
+                ? 0
+                : (int) Math.ceil((double) compactedHistory.size() / safePageSize);
+        return new PaginationResponse<>(safePage, safePageSize, totalPages,
+                (long) compactedHistory.size(), data);
     }
 
     @Transactional(readOnly = true)
@@ -452,12 +468,19 @@ public class TravelPlaceService {
     private void recordViewHistorySafely(Long placeId, Long userId) {
         try {
             this.sideEffectTransactionTemplate.executeWithoutResult(status -> {
-                TravelPlaceEntity placeReference = this.travelPlaceJpaRepository.getReferenceById(placeId);
-                UserEntity userReference = this.userJpaRepository.getReferenceById(userId);
-                this.travelPlaceViewHistoryJpaRepository.save(TravelPlaceViewHistoryEntity.builder()
-                        .place(placeReference)
-                        .user(userReference)
-                        .build());
+                TravelPlaceViewHistoryEntity history = this.travelPlaceViewHistoryJpaRepository
+                        .findTopByUserIdOrderByViewedAtDescIdDesc(userId)
+                        .filter(item -> Objects.equals(item.getPlace().getId(), placeId))
+                        .orElseGet(() -> {
+                            TravelPlaceEntity placeReference = this.travelPlaceJpaRepository.getReferenceById(placeId);
+                            UserEntity userReference = this.userJpaRepository.getReferenceById(userId);
+                            return TravelPlaceViewHistoryEntity.builder()
+                                    .place(placeReference)
+                                    .user(userReference)
+                                    .build();
+                        });
+                history.setViewedAt(Instant.now());
+                this.travelPlaceViewHistoryJpaRepository.save(history);
             });
         } catch (RuntimeException exception) {
             log.warn("Unable to record travel place view history for placeId={} userId={}",
