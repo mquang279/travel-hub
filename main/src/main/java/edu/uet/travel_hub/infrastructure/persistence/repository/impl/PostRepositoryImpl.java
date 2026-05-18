@@ -69,6 +69,19 @@ public class PostRepositoryImpl implements PostRepository {
     }
 
     @Override
+    public PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize) {
+        PageRequest request = PageRequest.of(pageNumber, pageSize);
+        Page<PostEntity> posts = this.postJpaRepository.searchByDescription(normalizeSearchTerm(description), request);
+        PaginationResponse<PostModel> response = new PaginationResponse<PostModel>(
+                posts.getNumber(),
+                posts.getSize(),
+                posts.getTotalPages(),
+                posts.getTotalElements(),
+                posts.getContent().stream().map(mapper::toDomain).toList());
+        return response;
+    }
+
+    @Override
     @Transactional
     public void increaseLikeCount(Long id) {
         this.postJpaRepository.incrementLike(id);
@@ -84,6 +97,10 @@ public class PostRepositoryImpl implements PostRepository {
     public int getLikeCount(Long id) {
         PostEntity postEntity = this.postJpaRepository.findById(id).get();
         return postEntity.getLikeCount();
+    }
+
+    private String normalizeSearchTerm(String term) {
+        return term == null ? "" : term.trim();
     }
 
 }
