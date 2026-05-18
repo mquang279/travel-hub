@@ -17,4 +17,6 @@ public interface TripExpenseJpaRepository extends JpaRepository<TripExpenseEntit
 
     @Query("SELECT SUM(e.amount) FROM TripExpenseEntity e WHERE e.trip.id = :tripId")
     Optional<BigDecimal> sumAmountByTripId(@Param("tripId") Long tripId);
+
+    void deleteByTripId(Long tripId);
 }

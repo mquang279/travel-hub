@@ -8,4 +8,6 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.TripActivityLogEntit
 
 public interface TripActivityLogJpaRepository extends JpaRepository<TripActivityLogEntity, Long> {
     List<TripActivityLogEntity> findTop20ByTripIdOrderByCreatedAtDescIdDesc(Long tripId);
+
+    void deleteByTripId(Long tripId);
 }

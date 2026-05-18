@@ -11,4 +11,6 @@ public interface TripPollJpaRepository extends JpaRepository<TripPollEntity, Lon
     List<TripPollEntity> findByTripIdOrderByCreatedAtDesc(Long tripId);
 
     Optional<TripPollEntity> findByIdAndTripId(Long id, Long tripId);
+
+    void deleteByTripId(Long tripId);
 }

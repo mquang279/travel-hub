@@ -3,12 +3,12 @@ package edu.uet.travel_hub.application.usecases;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -19,13 +19,11 @@ import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
 import edu.uet.travel_hub.application.dto.response.TripActivityItemResponse;
-import edu.uet.travel_hub.application.dto.response.TripActivityLogResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailHighlightsResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailTopExpenseResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailWinningPollResponse;
-import edu.uet.travel_hub.application.dto.response.TripHighlightResponse;
 import edu.uet.travel_hub.application.dto.response.TripInfoResponse;
 import edu.uet.travel_hub.application.dto.response.TripMemberResponse;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
@@ -34,9 +32,7 @@ import edu.uet.travel_hub.domain.enums.TripMemberStatus;
 import edu.uet.travel_hub.domain.enums.TripMemberRole;
 import edu.uet.travel_hub.domain.enums.TripStatus;
 import edu.uet.travel_hub.domain.mapper.TripRoleMapper;
-import edu.uet.travel_hub.domain.enums.TripExpenseCategory;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripExpenseEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.TripPollEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.PollVoteCount;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripMemberEntity;
@@ -56,6 +52,7 @@ public class TripService {
     private final TripJpaRepository tripJpaRepository;
     private final TripMemberJpaRepository tripMemberJpaRepository;
     private final UserJpaRepository userJpaRepository;
+    private static final DateTimeFormatter DISPLAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private final TripExpenseJpaRepository tripExpenseJpaRepository;
     private final TripPollJpaRepository tripPollJpaRepository;
     private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
@@ -206,6 +203,26 @@ public class TripService {
 
     @Transactional
     public Long createTrip(Long currentUserId, CreateTripRequest request) {
+        // Validate dates
+        LocalDate startDate = request.startDate();
+        LocalDate endDate = request.endDate();
+        LocalDate today = LocalDate.now();
+
+        // Check start date >= today
+        if (startDate.isBefore(today)) {
+            throw new IllegalArgumentException("Ngày đi phải lớn hơn hoặc bằng ngày hôm nay");
+        }
+
+        // Check end date >= start date
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("Ngày kết thúc phải lớn hơn hoặc bằng ngày đi");
+        }
+
+        // Check end date <= start date + 60 days
+        if (endDate.isAfter(startDate.plusDays(60))) {
+            throw new IllegalArgumentException("Ngày kết thúc không được vượt quá 60 ngày từ ngày đi");
+        }
+
         UserEntity leader = this.userJpaRepository.findById(currentUserId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -236,6 +253,27 @@ public class TripService {
     @Transactional
     public void updateTrip(Long tripId, Long currentUserId, UpdateTripRequest request) {
         TripEntity trip = requireLeaderTrip(tripId, currentUserId);
+        
+        // Validate dates if they are being updated
+        LocalDate startDate = request.startDate();
+        LocalDate endDate = request.endDate();
+        LocalDate today = LocalDate.now();
+
+        // Check start date >= today
+        if (startDate.isBefore(today)) {
+            throw new IllegalArgumentException("Ngày đi phải lớn hơn hoặc bằng ngày hôm nay");
+        }
+
+        // Check end date >= start date
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("Ngày kết thúc phải lớn hơn hoặc bằng ngày đi");
+        }
+
+        // Check end date <= start date + 60 days
+        if (endDate.isAfter(startDate.plusDays(60))) {
+            throw new IllegalArgumentException("Ngày kết thúc không được vượt quá 60 ngày từ ngày đi");
+        }
+
         trip.setName(normalizeRequired(request.name(), "name"));
         trip.setLocation(normalizeRequired(request.destination(), "destination"));
         trip.setStartDate(request.startDate());
@@ -249,6 +287,12 @@ public class TripService {
     @Transactional
     public void deleteTrip(Long tripId, Long currentUserId) {
         TripEntity trip = requireLeaderTrip(tripId, currentUserId);
+        // Delete related entities first to avoid FK constraint violations
+        this.tripActivityLogJpaRepository.deleteByTripId(tripId);
+        this.tripPollVoteJpaRepository.deleteVotesByTripId(tripId);
+        this.tripExpenseJpaRepository.deleteByTripId(tripId);
+        this.tripPollJpaRepository.deleteByTripId(tripId);
+        // Delete trip (members will cascade delete)
         this.tripJpaRepository.delete(trip);
     }
 
@@ -393,7 +437,7 @@ public class TripService {
     }
 
     private String formatDate(LocalDate value) {
-        return value == null ? null : value.toString();
+        return value == null ? null : DISPLAY_DATE_FORMATTER.format(value);
     }
 
     private String buildDateRange(LocalDate start, LocalDate end) {
@@ -401,12 +445,12 @@ public class TripService {
             return "Unknown";
         }
         if (start == null) {
-            return end.toString();
+            return formatDate(end);
         }
         if (end == null || end.equals(start)) {
-            return start.toString();
+            return formatDate(start);
         }
-        return start + " - " + end;
+        return formatDate(start) + " - " + formatDate(end);
     }
 
     private int compareNullableDates(LocalDate left, LocalDate right) {

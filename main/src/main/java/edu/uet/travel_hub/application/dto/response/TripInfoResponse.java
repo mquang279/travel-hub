@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.application.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -11,7 +13,9 @@ public record TripInfoResponse(
         String location,
         String coverImageUrl,
         String description,
+        @JsonFormat(pattern = "dd/MM/yyyy")
         LocalDate startDate,
+        @JsonFormat(pattern = "dd/MM/yyyy")
         LocalDate endDate,
         BigDecimal budgetMin,
         BigDecimal budgetMax,
