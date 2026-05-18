@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.application.usecases;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -30,27 +32,33 @@ import edu.uet.travel_hub.application.dto.response.ItinerarySummaryResponse;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
 import edu.uet.travel_hub.application.port.out.ItineraryAiGateway;
 import edu.uet.travel_hub.application.port.out.ItineraryAiGateway.ItineraryAiGatewayRequest;
+import edu.uet.travel_hub.domain.enums.TripMemberStatus;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryDayEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryStopEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryDetailRow;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItinerarySummaryProjection;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Service
 public class ItineraryService {
     private final ItineraryJpaRepository itineraryJpaRepository;
+    private final TripJpaRepository tripJpaRepository;
     private final UserJpaRepository userJpaRepository;
     private final ItineraryAiGateway itineraryAiGateway;
     private final Map<String, StoredAiProposal> pendingAiProposals = new ConcurrentHashMap<>();
 
     public ItineraryService(
             ItineraryJpaRepository itineraryJpaRepository,
+            TripJpaRepository tripJpaRepository,
             UserJpaRepository userJpaRepository,
             ItineraryAiGateway itineraryAiGateway) {
         this.itineraryJpaRepository = itineraryJpaRepository;
+        this.tripJpaRepository = tripJpaRepository;
         this.userJpaRepository = userJpaRepository;
         this.itineraryAiGateway = itineraryAiGateway;
     }
@@ -63,19 +71,31 @@ public class ItineraryService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ItineraryResponse getItinerary(Long itineraryId, Long currentUserId) {
-        return toResponse(this.itineraryJpaRepository.findDetailRowsByIdAndOwnerId(itineraryId, currentUserId));
+        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null, itinerary.getGroupName()));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ItineraryResponse getItineraryByGroupName(String groupName, Long currentUserId) {
-        return toResponse(this.itineraryJpaRepository.findDetailRowsByOwnerIdAndGroupName(currentUserId, normalizeGroupName(groupName)));
+        String normalizedGroupName = normalizeGroupName(groupName);
+        ItineraryEntity itinerary = this.itineraryJpaRepository.findByOwnerIdAndGroupNameIgnoreCase(currentUserId, normalizedGroupName)
+                .orElseThrow(() -> new ResourceNotFoundException("Itinerary not found"));
+        syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null, normalizedGroupName));
+        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
     public ItineraryResponse createItinerary(Long currentUserId, CreateItineraryRequest request) {
         String normalizedGroupName = normalizeGroupName(request.groupName());
+        TripEntity trip = findTripForItinerary(currentUserId, request.tripId(), normalizedGroupName);
+        if (trip != null) {
+            normalizedGroupName = normalizeGroupName(trip.getName());
+        }
         ensureGroupNameAvailable(currentUserId, normalizedGroupName, null);
 
         UserEntity owner = this.userJpaRepository.findById(currentUserId)
@@ -87,6 +107,7 @@ public class ItineraryService {
                 .version(1)
                 .build();
 
+        syncTripDateRangeDays(itinerary, trip);
         ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
@@ -220,7 +241,7 @@ public class ItineraryService {
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ItineraryAiProposalResponse createAiProposal(
             Long itineraryId,
             Long currentUserId,
@@ -281,6 +302,76 @@ public class ItineraryService {
 
     private ItineraryResponse toResponse(Long itineraryId, Long currentUserId) {
         return toResponse(this.itineraryJpaRepository.findDetailRowsByIdAndOwnerId(itineraryId, currentUserId));
+    }
+
+    private TripEntity findTripForItinerary(Long currentUserId, Long tripId, String groupName) {
+        if (tripId != null && tripId > 0) {
+            return this.tripJpaRepository.findActiveMemberTripById(tripId, currentUserId, TripMemberStatus.ACTIVE)
+                    .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+        }
+        return this.tripJpaRepository.findActiveMemberTripsByName(currentUserId, TripMemberStatus.ACTIVE, groupName)
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void syncTripDateRangeDays(ItineraryEntity itinerary, TripEntity trip) {
+        if (trip == null || trip.getStartDate() == null || trip.getEndDate() == null) {
+            return;
+        }
+        LocalDate startDate = trip.getStartDate();
+        LocalDate endDate = trip.getEndDate();
+        if (endDate.isBefore(startDate)) {
+            return;
+        }
+
+        int dayCount = Math.toIntExact(ChronoUnit.DAYS.between(startDate, endDate) + 1);
+        List<ItineraryDayEntity> orderedDays = new ArrayList<>(itinerary.getDays());
+        orderedDays.sort(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId, Comparator.nullsLast(Long::compareTo)));
+
+        for (int dayIndex = 1; dayIndex <= dayCount; dayIndex++) {
+            ItineraryDayEntity day = findDayByIndex(orderedDays, dayIndex);
+            if (day == null) {
+                day = ItineraryDayEntity.builder()
+                        .itinerary(itinerary)
+                        .dayIndex(dayIndex)
+                        .label(defaultDayLabel(dayIndex))
+                        .dateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)))
+                        .build();
+                itinerary.getDays().add(day);
+                orderedDays.add(day);
+            } else {
+                day.setLabel(defaultDayLabel(dayIndex));
+                day.setDateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)));
+            }
+        }
+
+        itinerary.getDays().removeIf(day -> day.getDayIndex() > dayCount && day.getStops().isEmpty());
+        renumberDays(itinerary);
+    }
+
+    private ItineraryDayEntity findDayByIndex(List<ItineraryDayEntity> days, int dayIndex) {
+        return days.stream()
+                .filter(day -> day.getDayIndex() == dayIndex)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String defaultDayLabel(int dayIndex) {
+        return "Day " + dayIndex;
+    }
+
+    private String defaultDateLabel(LocalDate date) {
+        String dayOfWeek = switch (date.getDayOfWeek()) {
+            case MONDAY -> "T2";
+            case TUESDAY -> "T3";
+            case WEDNESDAY -> "T4";
+            case THURSDAY -> "T5";
+            case FRIDAY -> "T6";
+            case SATURDAY -> "T7";
+            case SUNDAY -> "CN";
+        };
+        return "%s, %02d/%02d/%d".formatted(dayOfWeek, date.getDayOfMonth(), date.getMonthValue(), date.getYear());
     }
 
     private ItineraryEntity findOwnedItinerary(Long itineraryId, Long currentUserId) {

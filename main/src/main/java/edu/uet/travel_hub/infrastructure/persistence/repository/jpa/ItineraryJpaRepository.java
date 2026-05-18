@@ -34,6 +34,9 @@ public interface ItineraryJpaRepository extends JpaRepository<ItineraryEntity, L
     @EntityGraph(attributePaths = { "days" })
     Optional<ItineraryEntity> findByIdAndOwnerId(Long id, Long ownerId);
 
+    @EntityGraph(attributePaths = { "days" })
+    Optional<ItineraryEntity> findByOwnerIdAndGroupNameIgnoreCase(Long ownerId, String groupName);
+
     @Query("""
             select i.id as itineraryId,
                    i.groupName as groupName,
