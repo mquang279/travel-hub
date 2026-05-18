@@ -4,6 +4,8 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,4 +37,11 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
     void decrementFollowers(@Param("id") Long id);
 
     Optional<UserEntity> findByEmail(String email);
+
+    @Query("""
+            SELECT u FROM UserEntity u
+            WHERE lower(coalesce(u.username, '')) LIKE lower(concat('%', :username, '%'))
+            ORDER BY u.username ASC, u.id ASC
+            """)
+    Page<UserEntity> searchByUsername(@Param("username") String username, Pageable pageable);
 }

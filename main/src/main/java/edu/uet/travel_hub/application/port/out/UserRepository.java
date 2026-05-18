@@ -2,6 +2,7 @@ package edu.uet.travel_hub.application.port.out;
 
 import java.util.Optional;
 
+import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.domain.model.UserModel;
 
@@ -13,6 +14,8 @@ public interface UserRepository {
     Optional<UserModel> findById(Long id);
 
     Optional<UserModel> findByEmail(String email);
+
+    PaginationResponse<UserModel> searchByUsername(String username, int pageNumber, int pageSize);
 
     void updateRefreshToken(Long id, String refreshToken);
 

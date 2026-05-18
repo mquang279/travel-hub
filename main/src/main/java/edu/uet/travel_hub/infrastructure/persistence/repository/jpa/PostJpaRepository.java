@@ -19,6 +19,14 @@ public interface PostJpaRepository extends JpaRepository<PostEntity, Long> {
     @Query("SELECT p FROM PostEntity p WHERE p.user.id = :userId ORDER BY p.createdAt DESC, p.id DESC")
     Page<PostEntity> findByUserId(@Param("userId") Long userId, Pageable pageable);
 
+    @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
+    @Query("""
+            SELECT p FROM PostEntity p
+            WHERE lower(coalesce(p.description, '')) LIKE lower(concat('%', :description, '%'))
+            ORDER BY p.createdAt DESC, p.id DESC
+            """)
+    Page<PostEntity> searchByDescription(@Param("description") String description, Pageable pageable);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PostEntity p SET p.likeCount = p.likeCount + 1 WHERE p.id = :postId")
     void incrementLike(@Param("postId") Long postId);

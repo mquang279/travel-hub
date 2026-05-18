@@ -28,6 +28,16 @@ public class GetAllPostsService implements GetAllPostsUseCase {
     @Override
     public PaginationResponse<PostModel> getAll(int pageNumber, int pageSize) {
         PaginationResponse<PostModel> posts = this.postRepository.getAll(pageNumber, pageSize);
+        return withLikedState(posts);
+    }
+
+    @Override
+    public PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize) {
+        PaginationResponse<PostModel> posts = this.postRepository.searchByDescription(description, pageNumber, pageSize);
+        return withLikedState(posts);
+    }
+
+    private PaginationResponse<PostModel> withLikedState(PaginationResponse<PostModel> posts) {
         Long currentUserId = getCurrentUserIdOrNull();
         Set<Long> likedPostIds = findLikedPostIds(currentUserId, posts.data());
 

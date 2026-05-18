@@ -2,6 +2,7 @@ package edu.uet.travel_hub.interfaces.controller;
 
 import edu.uet.travel_hub.application.port.in.GetUserProfileUseCase;
 import edu.uet.travel_hub.application.port.in.GetPostsOfUserUseCase;
+import edu.uet.travel_hub.application.port.in.SearchUsersUseCase;
 import edu.uet.travel_hub.application.port.in.UpdateProfileUseCase;
 import edu.uet.travel_hub.application.port.in.UploadAvatarUseCase;
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
@@ -34,6 +35,7 @@ public class UserController {
 
 	private final GetUserProfileUseCase getUserProfileUseCase;
 	private final GetPostsOfUserUseCase getPostsOfUserUseCase;
+	private final SearchUsersUseCase searchUsersUseCase;
 	private final UpdateProfileUseCase updateProfileUseCase;
 	private final UploadAvatarUseCase uploadAvatarUseCase;
 	private final UserPreferenceService userPreferenceService;
@@ -50,6 +52,14 @@ public class UserController {
 	public ResponseEntity<UserProfileResponse> getProfile(@PathVariable Long userId) {
 		Long currentUserId = currentUserProvider.getOptionalCurrentUserId().orElse(null);
 		return ResponseEntity.ok(getUserProfileUseCase.getProfile(currentUserId, userId));
+	}
+
+	@GetMapping("/search")
+	public ResponseEntity<PaginationResponse<UserProfileResponse>> searchByUsername(
+			@RequestParam(defaultValue = "") String username,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int pageSize) {
+		return ResponseEntity.ok(searchUsersUseCase.searchByUsername(username, page, pageSize));
 	}
 
 	@GetMapping("/{userId}/posts")

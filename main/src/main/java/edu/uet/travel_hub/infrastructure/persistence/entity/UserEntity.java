@@ -29,6 +29,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "users")
@@ -74,6 +75,7 @@ public class UserEntity {
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "user_interests", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "interest", nullable = false)
+    @BatchSize(size = 100)
     private List<String> interests;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)

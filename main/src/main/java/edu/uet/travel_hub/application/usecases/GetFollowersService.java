@@ -1,5 +1,8 @@
 package edu.uet.travel_hub.application.usecases;
 
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,13 +22,21 @@ public class GetFollowersService implements GetFollowersUseCase {
 
     @Override
     public Page<UserFollowResponse> getFollowers(Long currentUserId, Long targetUserId, Pageable pageable) {
-        return followRepository.findFollowers(targetUserId, pageable)
-                .map(follower -> mapFollower(currentUserId, follower));
+        Page<UserModel> followers = followRepository.findFollowers(targetUserId, pageable);
+        Set<Long> followingIds = findFollowingIds(currentUserId, followers);
+
+        return followers.map(follower -> userProfileMapper.toFollowResponse(
+                follower,
+                followingIds.contains(follower.getId())));
     }
 
-    private UserFollowResponse mapFollower(Long currentUserId, UserModel follower) {
-        boolean following = currentUserId != null
-                && followRepository.existsByFollowerIdAndFollowingId(currentUserId, follower.getId());
-        return userProfileMapper.toFollowResponse(follower, following);
+    private Set<Long> findFollowingIds(Long currentUserId, Page<UserModel> users) {
+        if (currentUserId == null || users.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> userIds = users.stream()
+                .map(UserModel::getId)
+                .collect(Collectors.toSet());
+        return followRepository.findFollowingIds(currentUserId, userIds);
     }
 }

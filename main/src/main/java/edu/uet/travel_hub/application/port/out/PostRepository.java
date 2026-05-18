@@ -14,6 +14,8 @@ public interface PostRepository {
 
     PaginationResponse<PostModel> getByUserId(Long userId, int pageNumber, int pageSize);
 
+    PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize);
+
     void increaseLikeCount(Long id);
 
     void decreaseLikeCount(Long id);

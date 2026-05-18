@@ -1,6 +1,7 @@
 package edu.uet.travel_hub.application.port.out;
 
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,8 @@ public interface FollowRepository {
     Optional<FollowModel> findByFollowerIdAndFollowingId(Long followerId, Long followingId);
 
     boolean existsByFollowerIdAndFollowingId(Long followerId, Long followingId);
+
+    Set<Long> findFollowingIds(Long followerId, Set<Long> followingIds);
 
     FollowModel save(FollowModel followModel);
 
