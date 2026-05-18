@@ -3,8 +3,11 @@ package edu.uet.travel_hub.infrastructure.persistence.repository.impl;
 import java.util.ArrayList;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.domain.model.UserModel;
@@ -63,6 +66,18 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public PaginationResponse<UserModel> searchByUsername(String username, int pageNumber, int pageSize) {
+        PageRequest request = PageRequest.of(pageNumber, pageSize);
+        Page<UserEntity> users = this.userJpaRepository.searchByUsername(normalizeSearchTerm(username), request);
+        return new PaginationResponse<>(
+                users.getNumber(),
+                users.getSize(),
+                users.getTotalPages(),
+                users.getTotalElements(),
+                users.getContent().stream().map(mapper::toDomain).toList());
+    }
+
+    @Override
     @Transactional
     public void updateRefreshToken(Long id, String refreshToken) {
         UserEntity entity = this.userJpaRepository.findById(id)
@@ -106,5 +121,9 @@ public class UserRepositoryImpl implements UserRepository {
                 .build();
         UserEntity saved = this.userJpaRepository.save(userEntity);
         return this.mapper.toDomain(saved);
+    }
+
+    private String normalizeSearchTerm(String term) {
+        return term == null ? "" : term.trim();
     }
 }
