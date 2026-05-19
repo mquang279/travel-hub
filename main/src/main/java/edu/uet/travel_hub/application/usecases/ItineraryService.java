@@ -74,7 +74,8 @@ public class ItineraryService {
     @Transactional
     public ItineraryResponse getItinerary(Long itineraryId, Long currentUserId) {
         ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null, itinerary.getGroupName()));
+        // syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null,
+        // itinerary.getGroupName()));
         ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
@@ -82,9 +83,11 @@ public class ItineraryService {
     @Transactional
     public ItineraryResponse getItineraryByGroupName(String groupName, Long currentUserId) {
         String normalizedGroupName = normalizeGroupName(groupName);
-        ItineraryEntity itinerary = this.itineraryJpaRepository.findByOwnerIdAndGroupNameIgnoreCase(currentUserId, normalizedGroupName)
+        ItineraryEntity itinerary = this.itineraryJpaRepository
+                .findByOwnerIdAndGroupNameIgnoreCase(currentUserId, normalizedGroupName)
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary not found"));
-        syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null, normalizedGroupName));
+        // syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null,
+        // normalizedGroupName));
         ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
@@ -107,7 +110,7 @@ public class ItineraryService {
                 .version(1)
                 .build();
 
-        syncTripDateRangeDays(itinerary, trip);
+        // syncTripDateRangeDays(itinerary, trip);
         ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
@@ -149,7 +152,8 @@ public class ItineraryService {
     }
 
     @Transactional
-    public ItineraryResponse updateDay(Long itineraryId, Long dayId, Long currentUserId, UpdateItineraryDayRequest request) {
+    public ItineraryResponse updateDay(Long itineraryId, Long dayId, Long currentUserId,
+            UpdateItineraryDayRequest request) {
         ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
         ItineraryDayEntity day = findDay(itinerary, dayId);
 
@@ -198,7 +202,8 @@ public class ItineraryService {
     }
 
     @Transactional
-    public ItineraryResponse updateStop(Long itineraryId, Long stopId, Long currentUserId, UpdateItineraryStopRequest request) {
+    public ItineraryResponse updateStop(Long itineraryId, Long stopId, Long currentUserId,
+            UpdateItineraryStopRequest request) {
         ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
         ItineraryStopEntity stop = findStop(itinerary, stopId);
         ItineraryDayEntity targetDay = findDay(itinerary, request.dayId());
@@ -315,40 +320,45 @@ public class ItineraryService {
                 .orElse(null);
     }
 
-    private void syncTripDateRangeDays(ItineraryEntity itinerary, TripEntity trip) {
-        if (trip == null || trip.getStartDate() == null || trip.getEndDate() == null) {
-            return;
-        }
-        LocalDate startDate = trip.getStartDate();
-        LocalDate endDate = trip.getEndDate();
-        if (endDate.isBefore(startDate)) {
-            return;
-        }
+    // private void syncTripDateRangeDays(ItineraryEntity itinerary, TripEntity
+    // trip) {
+    // if (trip == null || trip.getStartDate() == null || trip.getEndDate() == null)
+    // {
+    // return;
+    // }
+    // LocalDate startDate = trip.getStartDate();
+    // LocalDate endDate = trip.getEndDate();
+    // if (endDate.isBefore(startDate)) {
+    // return;
+    // }
 
-        int dayCount = Math.toIntExact(ChronoUnit.DAYS.between(startDate, endDate) + 1);
-        List<ItineraryDayEntity> orderedDays = new ArrayList<>(itinerary.getDays());
-        orderedDays.sort(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId, Comparator.nullsLast(Long::compareTo)));
+    // int dayCount = Math.toIntExact(ChronoUnit.DAYS.between(startDate, endDate) +
+    // 1);
+    // List<ItineraryDayEntity> orderedDays = new ArrayList<>(itinerary.getDays());
+    // orderedDays.sort(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId,
+    // Comparator.nullsLast(Long::compareTo)));
 
-        for (int dayIndex = 1; dayIndex <= dayCount; dayIndex++) {
-            ItineraryDayEntity day = findDayByIndex(orderedDays, dayIndex);
-            if (day == null) {
-                day = ItineraryDayEntity.builder()
-                        .itinerary(itinerary)
-                        .dayIndex(dayIndex)
-                        .label(defaultDayLabel(dayIndex))
-                        .dateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)))
-                        .build();
-                itinerary.getDays().add(day);
-                orderedDays.add(day);
-            } else {
-                day.setLabel(defaultDayLabel(dayIndex));
-                day.setDateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)));
-            }
-        }
+    // for (int dayIndex = 1; dayIndex <= dayCount; dayIndex++) {
+    // ItineraryDayEntity day = findDayByIndex(orderedDays, dayIndex);
+    // if (day == null) {
+    // day = ItineraryDayEntity.builder()
+    // .itinerary(itinerary)
+    // .dayIndex(dayIndex)
+    // .label(defaultDayLabel(dayIndex))
+    // .dateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)))
+    // .build();
+    // itinerary.getDays().add(day);
+    // orderedDays.add(day);
+    // } else {
+    // day.setLabel(defaultDayLabel(dayIndex));
+    // day.setDateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)));
+    // }
+    // }
 
-        itinerary.getDays().removeIf(day -> day.getDayIndex() > dayCount && day.getStops().isEmpty());
-        renumberDays(itinerary);
-    }
+    // itinerary.getDays().removeIf(day -> day.getDayIndex() > dayCount &&
+    // day.getStops().isEmpty());
+    // renumberDays(itinerary);
+    // }
 
     private ItineraryDayEntity findDayByIndex(List<ItineraryDayEntity> days, int dayIndex) {
         return days.stream()
@@ -448,7 +458,8 @@ public class ItineraryService {
         if (dayDraft == null) {
             throw new IllegalArgumentException("dayAfter is required for UPDATE_DAY");
         }
-        Long targetDayId = change.targetDayId() != null ? change.targetDayId() : dayDraft != null ? dayDraft.id() : null;
+        Long targetDayId = change.targetDayId() != null ? change.targetDayId()
+                : dayDraft != null ? dayDraft.id() : null;
         Integer targetDayIndex = dayDraft != null ? dayDraft.dayIndex() : null;
         ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
         day.setLabel(normalizeRequiredText(dayDraft.label(), "label"));
@@ -457,7 +468,8 @@ public class ItineraryService {
 
     private void applyDeleteDay(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
         ItineraryAiDayDraftResponse dayDraft = change.dayBefore();
-        Long targetDayId = change.targetDayId() != null ? change.targetDayId() : dayDraft != null ? dayDraft.id() : null;
+        Long targetDayId = change.targetDayId() != null ? change.targetDayId()
+                : dayDraft != null ? dayDraft.id() : null;
         Integer targetDayIndex = dayDraft != null ? dayDraft.dayIndex() : null;
         ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
         removeDayFromItinerary(itinerary, day);
@@ -488,7 +500,9 @@ public class ItineraryService {
         ItineraryDayEntity currentDay = stop.getDay();
         Long targetDayId = firstNonNull(change.toDayId(), stopDraft.dayId());
         Integer targetDayIndex = firstNonNull(change.toDayIndex(), stopDraft.dayIndex());
-        Long resolvedTargetDayId = targetDayId != null || targetDayIndex == null ? firstNonNull(targetDayId, currentDay.getId()) : null;
+        Long resolvedTargetDayId = targetDayId != null || targetDayIndex == null
+                ? firstNonNull(targetDayId, currentDay.getId())
+                : null;
         ItineraryDayEntity targetDay = findDayByIdOrIndex(
                 itinerary,
                 resolvedTargetDayId,
@@ -506,7 +520,8 @@ public class ItineraryService {
     }
 
     private void applyDeleteEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
-        Long targetStopId = firstNonNull(change.targetStopId(), change.stopBefore() != null ? change.stopBefore().id() : null);
+        Long targetStopId = firstNonNull(change.targetStopId(),
+                change.stopBefore() != null ? change.stopBefore().id() : null);
         if (targetStopId == null) {
             throw new IllegalArgumentException("targetStopId is required for DELETE_EVENT");
         }
@@ -517,7 +532,8 @@ public class ItineraryService {
     }
 
     private void applyMoveEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
-        Long targetStopId = firstNonNull(change.targetStopId(), change.stopBefore() != null ? change.stopBefore().id() : null);
+        Long targetStopId = firstNonNull(change.targetStopId(),
+                change.stopBefore() != null ? change.stopBefore().id() : null);
         if (targetStopId == null) {
             throw new IllegalArgumentException("targetStopId is required for MOVE_EVENT");
         }
@@ -575,7 +591,8 @@ public class ItineraryService {
     private void ensureGroupNameAvailable(Long ownerId, String groupName, Long itineraryId) {
         boolean exists = itineraryId == null
                 ? this.itineraryJpaRepository.existsByOwnerIdAndGroupNameIgnoreCase(ownerId, groupName)
-                : this.itineraryJpaRepository.existsByOwnerIdAndGroupNameIgnoreCaseAndIdNot(ownerId, groupName, itineraryId);
+                : this.itineraryJpaRepository.existsByOwnerIdAndGroupNameIgnoreCaseAndIdNot(ownerId, groupName,
+                        itineraryId);
         if (exists) {
             throw new IllegalArgumentException("An itinerary with this groupName already exists");
         }
@@ -583,7 +600,8 @@ public class ItineraryService {
 
     private void renumberDays(ItineraryEntity itinerary) {
         List<ItineraryDayEntity> orderedDays = new ArrayList<>(itinerary.getDays());
-        orderedDays.sort(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId, Comparator.nullsLast(Long::compareTo)));
+        orderedDays.sort(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId,
+                Comparator.nullsLast(Long::compareTo)));
         for (int index = 0; index < orderedDays.size(); index++) {
             orderedDays.get(index).setDayIndex(index + 1);
         }
@@ -591,7 +609,8 @@ public class ItineraryService {
 
     private void normalizeStopOrders(ItineraryDayEntity day) {
         List<ItineraryStopEntity> orderedStops = new ArrayList<>(day.getStops());
-        orderedStops.sort(Comparator.comparing(ItineraryStopEntity::getSortOrder).thenComparing(ItineraryStopEntity::getId, Comparator.nullsLast(Long::compareTo)));
+        orderedStops.sort(Comparator.comparing(ItineraryStopEntity::getSortOrder)
+                .thenComparing(ItineraryStopEntity::getId, Comparator.nullsLast(Long::compareTo)));
         for (int index = 0; index < orderedStops.size(); index++) {
             orderedStops.get(index).setSortOrder(index + 1);
         }
