@@ -39,7 +39,7 @@ import lombok.NoArgsConstructor;
         })
 @Getter
 @Setter
-@ToString(exclude = {"leader", "members"})
+@ToString(exclude = {"leader", "members", "days"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
@@ -88,6 +88,10 @@ public class TripEntity {
     @Builder.Default
     private List<TripMemberEntity> members = new ArrayList<>();
 
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<TripDayEntity> days = new ArrayList<>();
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -109,8 +113,7 @@ public class TripEntity {
         this.status = TripStatus.fromDates(this.startDate, this.endDate);
     }
 
-    // Backwards-compatible accessor used by some services
-    public edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity getOwner() {
+    public UserEntity getOwner() {
         return this.leader;
     }
 }
