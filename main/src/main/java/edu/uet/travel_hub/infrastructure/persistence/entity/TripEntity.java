@@ -109,8 +109,7 @@ public class TripEntity {
         this.status = TripStatus.fromDates(this.startDate, this.endDate);
     }
 
-    // Backwards-compatible accessor used by some services
-    public edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity getOwner() {
+    public UserEntity getOwner() {
         return this.leader;
     }
 }

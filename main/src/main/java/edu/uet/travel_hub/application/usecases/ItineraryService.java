@@ -179,7 +179,7 @@ public class ItineraryService {
     @Transactional
     public ItineraryResponse createStop(Long itineraryId, Long currentUserId, CreateItineraryStopRequest request) {
         ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        ItineraryDayEntity day = findDay(itinerary, request.dayId());
+        ItineraryDayEntity day = resolveDayForStop(itinerary, request);
 
         ItineraryStopEntity stop = ItineraryStopEntity.builder()
                 .day(day)
@@ -367,6 +367,14 @@ public class ItineraryService {
                 .orElse(null);
     }
 
+    private ItineraryDayEntity findDayByLabelAndDate(ItineraryEntity itinerary, String label, String dateLabel) {
+        return itinerary.getDays().stream()
+                .filter(day -> label.equalsIgnoreCase(day.getLabel())
+                        && dateLabel.equalsIgnoreCase(day.getDateLabel()))
+                .findFirst()
+                .orElse(null);
+    }
+
     private String defaultDayLabel(int dayIndex) {
         return "Day " + dayIndex;
     }
@@ -394,6 +402,44 @@ public class ItineraryService {
                 .filter(day -> day.getId().equals(dayId))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary day not found"));
+    }
+
+    private ItineraryDayEntity resolveDayForStop(ItineraryEntity itinerary, CreateItineraryStopRequest request) {
+        if (request.dayId() != null) {
+            return findDay(itinerary, request.dayId());
+        }
+
+        Integer dayIndex = request.dayIndex();
+        if (dayIndex != null && dayIndex > 0) {
+            ItineraryDayEntity existingByIndex = findDayByIndex(itinerary.getDays(), dayIndex);
+            if (existingByIndex != null) {
+                return existingByIndex;
+            }
+        }
+
+        String normalizedLabel = normalizeOptionalText(request.dayLabel());
+        String normalizedDateLabel = normalizeOptionalText(request.dayDateLabel());
+        if (!normalizedLabel.isEmpty() && !normalizedDateLabel.isEmpty()) {
+            ItineraryDayEntity existingByLabel = findDayByLabelAndDate(itinerary, normalizedLabel, normalizedDateLabel);
+            if (existingByLabel != null) {
+                return existingByLabel;
+            }
+        }
+
+        if (normalizedLabel.isEmpty() || normalizedDateLabel.isEmpty()) {
+            throw new IllegalArgumentException("dayLabel and dayDateLabel are required when dayId is not provided");
+        }
+
+        ItineraryDayEntity day = ItineraryDayEntity.builder()
+                .itinerary(itinerary)
+                .dayIndex(dayIndex != null && dayIndex > 0 ? dayIndex : itinerary.getDays().size() + 1)
+                .label(normalizeRequiredText(normalizedLabel, "dayLabel"))
+                .dateLabel(normalizeRequiredText(normalizedDateLabel, "dayDateLabel"))
+                .build();
+
+        itinerary.getDays().add(day);
+        renumberDays(itinerary);
+        return day;
     }
 
     private ItineraryStopEntity findStop(ItineraryEntity itinerary, Long stopId) {
