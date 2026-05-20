@@ -1,7 +1,5 @@
 package edu.uet.travel_hub.application.usecases;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -30,115 +28,108 @@ import edu.uet.travel_hub.application.dto.response.ItineraryResponse;
 import edu.uet.travel_hub.application.dto.response.ItineraryStopResponse;
 import edu.uet.travel_hub.application.dto.response.ItinerarySummaryResponse;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
+import edu.uet.travel_hub.application.port.in.ItineraryUseCase;
 import edu.uet.travel_hub.application.port.out.ItineraryAiGateway;
 import edu.uet.travel_hub.application.port.out.ItineraryAiGateway.ItineraryAiGatewayRequest;
+import edu.uet.travel_hub.application.port.out.ItineraryRepository;
+import edu.uet.travel_hub.application.port.out.TripLookupRepository;
 import edu.uet.travel_hub.domain.enums.TripMemberStatus;
-import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryDayEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.ItineraryStopEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryDetailRow;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItineraryJpaRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ItinerarySummaryProjection;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripJpaRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
+import edu.uet.travel_hub.domain.model.ItineraryDayModel;
+import edu.uet.travel_hub.domain.model.ItineraryDetailRowModel;
+import edu.uet.travel_hub.domain.model.ItineraryModel;
+import edu.uet.travel_hub.domain.model.ItineraryStopModel;
+import edu.uet.travel_hub.domain.model.ItinerarySummaryModel;
 
 @Service
-public class ItineraryService {
-    private final ItineraryJpaRepository itineraryJpaRepository;
-    private final TripJpaRepository tripJpaRepository;
-    private final UserJpaRepository userJpaRepository;
+public class ItineraryService implements ItineraryUseCase {
+    private final ItineraryRepository itineraryRepository;
+    private final TripLookupRepository tripLookupRepository;
     private final ItineraryAiGateway itineraryAiGateway;
     private final Map<String, StoredAiProposal> pendingAiProposals = new ConcurrentHashMap<>();
 
     public ItineraryService(
-            ItineraryJpaRepository itineraryJpaRepository,
-            TripJpaRepository tripJpaRepository,
-            UserJpaRepository userJpaRepository,
+            ItineraryRepository itineraryRepository,
+            TripLookupRepository tripLookupRepository,
             ItineraryAiGateway itineraryAiGateway) {
-        this.itineraryJpaRepository = itineraryJpaRepository;
-        this.tripJpaRepository = tripJpaRepository;
-        this.userJpaRepository = userJpaRepository;
+        this.itineraryRepository = itineraryRepository;
+        this.tripLookupRepository = tripLookupRepository;
         this.itineraryAiGateway = itineraryAiGateway;
     }
 
     @Transactional(readOnly = true)
+    @Override
     public List<ItinerarySummaryResponse> getMyItineraries(Long currentUserId) {
-        return this.itineraryJpaRepository.findSummariesByOwnerId(currentUserId)
+        return this.itineraryRepository.findSummariesByOwnerId(currentUserId)
                 .stream()
                 .map(this::toSummaryResponse)
                 .toList();
     }
 
     @Transactional
+    @Override
     public ItineraryResponse getItinerary(Long itineraryId, Long currentUserId) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        // syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null,
-        // itinerary.getGroupName()));
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse getItineraryByGroupName(String groupName, Long currentUserId) {
         String normalizedGroupName = normalizeGroupName(groupName);
-        ItineraryEntity itinerary = this.itineraryJpaRepository
+        ItineraryModel itinerary = this.itineraryRepository
                 .findByOwnerIdAndGroupNameIgnoreCase(currentUserId, normalizedGroupName)
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary not found"));
-        // syncTripDateRangeDays(itinerary, findTripForItinerary(currentUserId, null,
-        // normalizedGroupName));
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse createItinerary(Long currentUserId, CreateItineraryRequest request) {
         String normalizedGroupName = normalizeGroupName(request.groupName());
-        TripEntity trip = findTripForItinerary(currentUserId, request.tripId(), normalizedGroupName);
-        if (trip != null) {
-            normalizedGroupName = normalizeGroupName(trip.getName());
+        String tripName = findTripNameForItinerary(currentUserId, request.tripId(), normalizedGroupName);
+        if (tripName != null) {
+            normalizedGroupName = normalizeGroupName(tripName);
         }
         ensureGroupNameAvailable(currentUserId, normalizedGroupName, null);
 
-        UserEntity owner = this.userJpaRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        ItineraryEntity itinerary = ItineraryEntity.builder()
+        ItineraryModel itinerary = ItineraryModel.builder()
                 .groupName(normalizedGroupName)
-                .owner(owner)
+                .ownerId(currentUserId)
                 .version(1)
                 .build();
 
-        // syncTripDateRangeDays(itinerary, trip);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse updateItinerary(Long itineraryId, Long currentUserId, UpdateItineraryRequest request) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
         String normalizedGroupName = normalizeGroupName(request.groupName());
         ensureGroupNameAvailable(currentUserId, normalizedGroupName, itineraryId);
 
         itinerary.setGroupName(normalizedGroupName);
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public void deleteItinerary(Long itineraryId, Long currentUserId) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        this.itineraryJpaRepository.delete(itinerary);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        this.itineraryRepository.delete(itinerary);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse createDay(Long itineraryId, Long currentUserId, CreateItineraryDayRequest request) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
 
-        ItineraryDayEntity day = ItineraryDayEntity.builder()
-                .itinerary(itinerary)
+        ItineraryDayModel day = ItineraryDayModel.builder()
                 .dayIndex(itinerary.getDays().size() + 1)
                 .label(normalizeRequiredText(request.label(), "label"))
                 .dateLabel(normalizeRequiredText(request.dateLabel(), "dateLabel"))
@@ -147,42 +138,44 @@ public class ItineraryService {
         itinerary.getDays().add(day);
         renumberDays(itinerary);
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse updateDay(Long itineraryId, Long dayId, Long currentUserId,
             UpdateItineraryDayRequest request) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        ItineraryDayEntity day = findDay(itinerary, dayId);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryDayModel day = findDay(itinerary, dayId);
 
         day.setLabel(normalizeRequiredText(request.label(), "label"));
         day.setDateLabel(normalizeRequiredText(request.dateLabel(), "dateLabel"));
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse deleteDay(Long itineraryId, Long dayId, Long currentUserId) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        ItineraryDayEntity day = findDay(itinerary, dayId);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryDayModel day = findDay(itinerary, dayId);
 
         removeDayFromItinerary(itinerary, day);
         renumberDays(itinerary);
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse createStop(Long itineraryId, Long currentUserId, CreateItineraryStopRequest request) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        ItineraryDayEntity day = resolveDayForStop(itinerary, request);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryDayModel day = resolveDayForStop(itinerary, request);
 
-        ItineraryStopEntity stop = ItineraryStopEntity.builder()
-                .day(day)
+        ItineraryStopModel stop = ItineraryStopModel.builder()
                 .sortOrder(resolveInsertIndex(day, request.sortOrder()))
                 .startTime(normalizeOptionalText(request.startTime()))
                 .endTime(normalizeOptionalText(request.endTime()))
@@ -197,17 +190,19 @@ public class ItineraryService {
 
         insertStop(day, stop, request.sortOrder());
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse updateStop(Long itineraryId, Long stopId, Long currentUserId,
             UpdateItineraryStopRequest request) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        ItineraryStopEntity stop = findStop(itinerary, stopId);
-        ItineraryDayEntity targetDay = findDay(itinerary, request.dayId());
-        ItineraryDayEntity currentDay = stop.getDay();
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        StopLocation stopLocation = findStop(itinerary, stopId);
+        ItineraryStopModel stop = stopLocation.stop();
+        ItineraryDayModel targetDay = findDay(itinerary, request.dayId());
+        ItineraryDayModel currentDay = stopLocation.day();
 
         stop.setStartTime(normalizeOptionalText(request.startTime()));
         stop.setEndTime(normalizeOptionalText(request.endTime()));
@@ -222,31 +217,33 @@ public class ItineraryService {
         if (!currentDay.getId().equals(targetDay.getId())) {
             removeStopFromDay(currentDay, stop);
             normalizeStopOrders(currentDay);
-            stop.setDay(targetDay);
             insertStop(targetDay, stop, request.sortOrder());
         } else {
             insertStop(targetDay, stop, request.sortOrder());
         }
 
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryResponse deleteStop(Long itineraryId, Long stopId, Long currentUserId) {
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
-        ItineraryStopEntity stop = findStop(itinerary, stopId);
-        ItineraryDayEntity day = stop.getDay();
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        StopLocation stopLocation = findStop(itinerary, stopId);
+        ItineraryStopModel stop = stopLocation.stop();
+        ItineraryDayModel day = stopLocation.day();
 
         removeStopFromDay(day, stop);
         normalizeStopOrders(day);
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     @Transactional
+    @Override
     public ItineraryAiProposalResponse createAiProposal(
             Long itineraryId,
             Long currentUserId,
@@ -276,6 +273,7 @@ public class ItineraryService {
     }
 
     @Transactional
+    @Override
     public ItineraryResponse applyAiProposal(
             Long itineraryId,
             String proposalId,
@@ -288,7 +286,7 @@ public class ItineraryService {
             throw new ResourceNotFoundException("AI proposal not found");
         }
 
-        ItineraryEntity itinerary = findOwnedItinerary(itineraryId, currentUserId);
+        ItineraryModel itinerary = findOwnedItinerary(itineraryId, currentUserId);
         ItineraryAiProposalResponse proposal = storedProposal.proposal();
         if (request.baseVersion() != proposal.baseVersion() || itinerary.getVersion() != proposal.baseVersion()) {
             throw new IllegalArgumentException("AI proposal is stale. Regenerate before applying changes.");
@@ -300,74 +298,34 @@ public class ItineraryService {
                 .forEach(change -> applyAiChange(itinerary, change));
 
         bumpVersion(itinerary);
-        ItineraryEntity savedItinerary = this.itineraryJpaRepository.saveAndFlush(itinerary);
+        ItineraryModel savedItinerary = this.itineraryRepository.saveAndFlush(itinerary);
         this.pendingAiProposals.remove(proposalId);
         return toResponse(savedItinerary.getId(), currentUserId);
     }
 
     private ItineraryResponse toResponse(Long itineraryId, Long currentUserId) {
-        return toResponse(this.itineraryJpaRepository.findDetailRowsByIdAndOwnerId(itineraryId, currentUserId));
+        return toResponse(this.itineraryRepository.findDetailRowsByIdAndOwnerId(itineraryId, currentUserId));
     }
 
-    private TripEntity findTripForItinerary(Long currentUserId, Long tripId, String groupName) {
+    private String findTripNameForItinerary(Long currentUserId, Long tripId, String groupName) {
         if (tripId != null && tripId > 0) {
-            return this.tripJpaRepository.findActiveMemberTripById(tripId, currentUserId, TripMemberStatus.ACTIVE)
+            return this.tripLookupRepository
+                    .findActiveMemberTripNameById(tripId, currentUserId, TripMemberStatus.ACTIVE)
                     .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
         }
-        return this.tripJpaRepository.findActiveMemberTripsByName(currentUserId, TripMemberStatus.ACTIVE, groupName)
-                .stream()
-                .findFirst()
+        return this.tripLookupRepository
+                .findFirstActiveMemberTripNameByName(currentUserId, TripMemberStatus.ACTIVE, groupName)
                 .orElse(null);
     }
 
-    // private void syncTripDateRangeDays(ItineraryEntity itinerary, TripEntity
-    // trip) {
-    // if (trip == null || trip.getStartDate() == null || trip.getEndDate() == null)
-    // {
-    // return;
-    // }
-    // LocalDate startDate = trip.getStartDate();
-    // LocalDate endDate = trip.getEndDate();
-    // if (endDate.isBefore(startDate)) {
-    // return;
-    // }
-
-    // int dayCount = Math.toIntExact(ChronoUnit.DAYS.between(startDate, endDate) +
-    // 1);
-    // List<ItineraryDayEntity> orderedDays = new ArrayList<>(itinerary.getDays());
-    // orderedDays.sort(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId,
-    // Comparator.nullsLast(Long::compareTo)));
-
-    // for (int dayIndex = 1; dayIndex <= dayCount; dayIndex++) {
-    // ItineraryDayEntity day = findDayByIndex(orderedDays, dayIndex);
-    // if (day == null) {
-    // day = ItineraryDayEntity.builder()
-    // .itinerary(itinerary)
-    // .dayIndex(dayIndex)
-    // .label(defaultDayLabel(dayIndex))
-    // .dateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)))
-    // .build();
-    // itinerary.getDays().add(day);
-    // orderedDays.add(day);
-    // } else {
-    // day.setLabel(defaultDayLabel(dayIndex));
-    // day.setDateLabel(defaultDateLabel(startDate.plusDays(dayIndex - 1L)));
-    // }
-    // }
-
-    // itinerary.getDays().removeIf(day -> day.getDayIndex() > dayCount &&
-    // day.getStops().isEmpty());
-    // renumberDays(itinerary);
-    // }
-
-    private ItineraryDayEntity findDayByIndex(List<ItineraryDayEntity> days, int dayIndex) {
+    private ItineraryDayModel findDayByIndex(List<ItineraryDayModel> days, int dayIndex) {
         return days.stream()
                 .filter(day -> day.getDayIndex() == dayIndex)
                 .findFirst()
                 .orElse(null);
     }
 
-    private ItineraryDayEntity findDayByLabelAndDate(ItineraryEntity itinerary, String label, String dateLabel) {
+    private ItineraryDayModel findDayByLabelAndDate(ItineraryModel itinerary, String label, String dateLabel) {
         return itinerary.getDays().stream()
                 .filter(day -> label.equalsIgnoreCase(day.getLabel())
                         && dateLabel.equalsIgnoreCase(day.getDateLabel()))
@@ -375,43 +333,26 @@ public class ItineraryService {
                 .orElse(null);
     }
 
-    private String defaultDayLabel(int dayIndex) {
-        return "Day " + dayIndex;
-    }
-
-    private String defaultDateLabel(LocalDate date) {
-        String dayOfWeek = switch (date.getDayOfWeek()) {
-            case MONDAY -> "T2";
-            case TUESDAY -> "T3";
-            case WEDNESDAY -> "T4";
-            case THURSDAY -> "T5";
-            case FRIDAY -> "T6";
-            case SATURDAY -> "T7";
-            case SUNDAY -> "CN";
-        };
-        return "%s, %02d/%02d/%d".formatted(dayOfWeek, date.getDayOfMonth(), date.getMonthValue(), date.getYear());
-    }
-
-    private ItineraryEntity findOwnedItinerary(Long itineraryId, Long currentUserId) {
-        return this.itineraryJpaRepository.findByIdAndOwnerId(itineraryId, currentUserId)
+    private ItineraryModel findOwnedItinerary(Long itineraryId, Long currentUserId) {
+        return this.itineraryRepository.findByIdAndOwnerId(itineraryId, currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary not found"));
     }
 
-    private ItineraryDayEntity findDay(ItineraryEntity itinerary, Long dayId) {
+    private ItineraryDayModel findDay(ItineraryModel itinerary, Long dayId) {
         return itinerary.getDays().stream()
-                .filter(day -> day.getId().equals(dayId))
+                .filter(day -> dayId.equals(day.getId()))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary day not found"));
     }
 
-    private ItineraryDayEntity resolveDayForStop(ItineraryEntity itinerary, CreateItineraryStopRequest request) {
+    private ItineraryDayModel resolveDayForStop(ItineraryModel itinerary, CreateItineraryStopRequest request) {
         if (request.dayId() != null) {
             return findDay(itinerary, request.dayId());
         }
 
         Integer dayIndex = request.dayIndex();
         if (dayIndex != null && dayIndex > 0) {
-            ItineraryDayEntity existingByIndex = findDayByIndex(itinerary.getDays(), dayIndex);
+            ItineraryDayModel existingByIndex = findDayByIndex(itinerary.getDays(), dayIndex);
             if (existingByIndex != null) {
                 return existingByIndex;
             }
@@ -420,7 +361,7 @@ public class ItineraryService {
         String normalizedLabel = normalizeOptionalText(request.dayLabel());
         String normalizedDateLabel = normalizeOptionalText(request.dayDateLabel());
         if (!normalizedLabel.isEmpty() && !normalizedDateLabel.isEmpty()) {
-            ItineraryDayEntity existingByLabel = findDayByLabelAndDate(itinerary, normalizedLabel, normalizedDateLabel);
+            ItineraryDayModel existingByLabel = findDayByLabelAndDate(itinerary, normalizedLabel, normalizedDateLabel);
             if (existingByLabel != null) {
                 return existingByLabel;
             }
@@ -430,8 +371,7 @@ public class ItineraryService {
             throw new IllegalArgumentException("dayLabel and dayDateLabel are required when dayId is not provided");
         }
 
-        ItineraryDayEntity day = ItineraryDayEntity.builder()
-                .itinerary(itinerary)
+        ItineraryDayModel day = ItineraryDayModel.builder()
                 .dayIndex(dayIndex != null && dayIndex > 0 ? dayIndex : itinerary.getDays().size() + 1)
                 .label(normalizeRequiredText(normalizedLabel, "dayLabel"))
                 .dateLabel(normalizeRequiredText(normalizedDateLabel, "dayDateLabel"))
@@ -442,15 +382,16 @@ public class ItineraryService {
         return day;
     }
 
-    private ItineraryStopEntity findStop(ItineraryEntity itinerary, Long stopId) {
+    private StopLocation findStop(ItineraryModel itinerary, Long stopId) {
         return itinerary.getDays().stream()
-                .flatMap(day -> day.getStops().stream())
-                .filter(stop -> stop.getId().equals(stopId))
+                .flatMap(day -> day.getStops().stream()
+                        .filter(stop -> stopId.equals(stop.getId()))
+                        .map(stop -> new StopLocation(day, stop)))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Itinerary stop not found"));
     }
 
-    private ItineraryDayEntity findDayByIdOrIndex(ItineraryEntity itinerary, Long dayId, Integer dayIndex) {
+    private ItineraryDayModel findDayByIdOrIndex(ItineraryModel itinerary, Long dayId, Integer dayIndex) {
         if (dayId != null) {
             return findDay(itinerary, dayId);
         }
@@ -463,7 +404,7 @@ public class ItineraryService {
         throw new IllegalArgumentException("Target day is required");
     }
 
-    private void applyAiChange(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+    private void applyAiChange(ItineraryModel itinerary, ItineraryAiChangeResponse change) {
         switch (change.type()) {
             case "ADD_DAY" -> applyAddDay(itinerary, change.dayAfter());
             case "UPDATE_DAY" -> applyUpdateDay(itinerary, change);
@@ -476,13 +417,12 @@ public class ItineraryService {
         }
     }
 
-    private void applyAddDay(ItineraryEntity itinerary, ItineraryAiDayDraftResponse dayDraft) {
+    private void applyAddDay(ItineraryModel itinerary, ItineraryAiDayDraftResponse dayDraft) {
         if (dayDraft == null) {
             throw new IllegalArgumentException("dayAfter is required for ADD_DAY");
         }
 
-        ItineraryDayEntity day = ItineraryDayEntity.builder()
-                .itinerary(itinerary)
+        ItineraryDayModel day = ItineraryDayModel.builder()
                 .dayIndex(dayDraft.dayIndex() > 0 ? dayDraft.dayIndex() : itinerary.getDays().size() + 1)
                 .label(normalizeRequiredText(dayDraft.label(), "label"))
                 .dateLabel(normalizeRequiredText(dayDraft.dateLabel(), "dateLabel"))
@@ -491,7 +431,7 @@ public class ItineraryService {
         itinerary.getDays().add(day);
         if (dayDraft.stops() != null) {
             for (ItineraryAiStopDraftResponse stopDraft : dayDraft.stops()) {
-                ItineraryStopEntity stop = buildStopFromAiDraft(day, stopDraft);
+                ItineraryStopModel stop = buildStopFromAiDraft(day, stopDraft);
                 day.getStops().add(stop);
             }
             normalizeStopOrders(day);
@@ -499,7 +439,7 @@ public class ItineraryService {
         renumberDays(itinerary);
     }
 
-    private void applyUpdateDay(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+    private void applyUpdateDay(ItineraryModel itinerary, ItineraryAiChangeResponse change) {
         ItineraryAiDayDraftResponse dayDraft = change.dayAfter();
         if (dayDraft == null) {
             throw new IllegalArgumentException("dayAfter is required for UPDATE_DAY");
@@ -507,49 +447,50 @@ public class ItineraryService {
         Long targetDayId = change.targetDayId() != null ? change.targetDayId()
                 : dayDraft != null ? dayDraft.id() : null;
         Integer targetDayIndex = dayDraft != null ? dayDraft.dayIndex() : null;
-        ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
+        ItineraryDayModel day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
         day.setLabel(normalizeRequiredText(dayDraft.label(), "label"));
         day.setDateLabel(normalizeRequiredText(dayDraft.dateLabel(), "dateLabel"));
     }
 
-    private void applyDeleteDay(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+    private void applyDeleteDay(ItineraryModel itinerary, ItineraryAiChangeResponse change) {
         ItineraryAiDayDraftResponse dayDraft = change.dayBefore();
         Long targetDayId = change.targetDayId() != null ? change.targetDayId()
                 : dayDraft != null ? dayDraft.id() : null;
         Integer targetDayIndex = dayDraft != null ? dayDraft.dayIndex() : null;
-        ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
+        ItineraryDayModel day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
         removeDayFromItinerary(itinerary, day);
         renumberDays(itinerary);
     }
 
-    private void applyAddEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+    private void applyAddEvent(ItineraryModel itinerary, ItineraryAiChangeResponse change) {
         ItineraryAiStopDraftResponse stopDraft = change.stopAfter();
         if (stopDraft == null) {
             throw new IllegalArgumentException("stopAfter is required for ADD_EVENT");
         }
         Long targetDayId = firstNonNull(change.toDayId(), stopDraft.dayId());
         Integer targetDayIndex = firstNonNull(change.toDayIndex(), stopDraft.dayIndex());
-        ItineraryDayEntity day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
-        ItineraryStopEntity stop = buildStopFromAiDraft(day, stopDraft);
+        ItineraryDayModel day = findDayByIdOrIndex(itinerary, targetDayId, targetDayIndex);
+        ItineraryStopModel stop = buildStopFromAiDraft(day, stopDraft);
         Integer requestedSortOrder = change.insertAt() == null ? stopDraft.sortOrder() : change.insertAt() + 1;
         insertStop(day, stop, requestedSortOrder);
     }
 
-    private void applyUpdateEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+    private void applyUpdateEvent(ItineraryModel itinerary, ItineraryAiChangeResponse change) {
         ItineraryAiStopDraftResponse stopDraft = change.stopAfter();
         Long targetStopId = firstNonNull(change.targetStopId(), stopDraft != null ? stopDraft.id() : null);
         if (targetStopId == null || stopDraft == null) {
             throw new IllegalArgumentException("targetStopId and stopAfter are required for UPDATE_EVENT");
         }
 
-        ItineraryStopEntity stop = findStop(itinerary, targetStopId);
-        ItineraryDayEntity currentDay = stop.getDay();
+        StopLocation stopLocation = findStop(itinerary, targetStopId);
+        ItineraryStopModel stop = stopLocation.stop();
+        ItineraryDayModel currentDay = stopLocation.day();
         Long targetDayId = firstNonNull(change.toDayId(), stopDraft.dayId());
         Integer targetDayIndex = firstNonNull(change.toDayIndex(), stopDraft.dayIndex());
         Long resolvedTargetDayId = targetDayId != null || targetDayIndex == null
                 ? firstNonNull(targetDayId, currentDay.getId())
                 : null;
-        ItineraryDayEntity targetDay = findDayByIdOrIndex(
+        ItineraryDayModel targetDay = findDayByIdOrIndex(
                 itinerary,
                 resolvedTargetDayId,
                 targetDayIndex);
@@ -558,46 +499,45 @@ public class ItineraryService {
         if (!currentDay.getId().equals(targetDay.getId())) {
             removeStopFromDay(currentDay, stop);
             normalizeStopOrders(currentDay);
-            stop.setDay(targetDay);
             insertStop(targetDay, stop, stopDraft.sortOrder());
         } else {
             insertStop(targetDay, stop, stopDraft.sortOrder());
         }
     }
 
-    private void applyDeleteEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+    private void applyDeleteEvent(ItineraryModel itinerary, ItineraryAiChangeResponse change) {
         Long targetStopId = firstNonNull(change.targetStopId(),
                 change.stopBefore() != null ? change.stopBefore().id() : null);
         if (targetStopId == null) {
             throw new IllegalArgumentException("targetStopId is required for DELETE_EVENT");
         }
-        ItineraryStopEntity stop = findStop(itinerary, targetStopId);
-        ItineraryDayEntity day = stop.getDay();
+        StopLocation stopLocation = findStop(itinerary, targetStopId);
+        ItineraryStopModel stop = stopLocation.stop();
+        ItineraryDayModel day = stopLocation.day();
         removeStopFromDay(day, stop);
         normalizeStopOrders(day);
     }
 
-    private void applyMoveEvent(ItineraryEntity itinerary, ItineraryAiChangeResponse change) {
+    private void applyMoveEvent(ItineraryModel itinerary, ItineraryAiChangeResponse change) {
         Long targetStopId = firstNonNull(change.targetStopId(),
                 change.stopBefore() != null ? change.stopBefore().id() : null);
         if (targetStopId == null) {
             throw new IllegalArgumentException("targetStopId is required for MOVE_EVENT");
         }
-        ItineraryStopEntity stop = findStop(itinerary, targetStopId);
-        ItineraryDayEntity currentDay = stop.getDay();
-        ItineraryDayEntity targetDay = findDayByIdOrIndex(itinerary, change.toDayId(), change.toDayIndex());
+        StopLocation stopLocation = findStop(itinerary, targetStopId);
+        ItineraryStopModel stop = stopLocation.stop();
+        ItineraryDayModel currentDay = stopLocation.day();
+        ItineraryDayModel targetDay = findDayByIdOrIndex(itinerary, change.toDayId(), change.toDayIndex());
 
         if (!currentDay.getId().equals(targetDay.getId())) {
             removeStopFromDay(currentDay, stop);
             normalizeStopOrders(currentDay);
-            stop.setDay(targetDay);
         }
         insertStop(targetDay, stop, change.toIndex() == null ? null : change.toIndex() + 1);
     }
 
-    private ItineraryStopEntity buildStopFromAiDraft(ItineraryDayEntity day, ItineraryAiStopDraftResponse stopDraft) {
-        return ItineraryStopEntity.builder()
-                .day(day)
+    private ItineraryStopModel buildStopFromAiDraft(ItineraryDayModel day, ItineraryAiStopDraftResponse stopDraft) {
+        return ItineraryStopModel.builder()
                 .sortOrder(stopDraft.sortOrder() == null ? day.getStops().size() + 1 : stopDraft.sortOrder())
                 .startTime(normalizeOptionalText(stopDraft.startTime()))
                 .endTime(normalizeOptionalText(stopDraft.endTime()))
@@ -611,7 +551,7 @@ public class ItineraryService {
                 .build();
     }
 
-    private void updateStopFromAiDraft(ItineraryStopEntity stop, ItineraryAiStopDraftResponse stopDraft) {
+    private void updateStopFromAiDraft(ItineraryStopModel stop, ItineraryAiStopDraftResponse stopDraft) {
         stop.setStartTime(normalizeOptionalText(stopDraft.startTime()));
         stop.setEndTime(normalizeOptionalText(stopDraft.endTime()));
         stop.setTitle(normalizeRequiredText(stopDraft.title(), "title"));
@@ -623,66 +563,65 @@ public class ItineraryService {
         stop.setIconName(normalizeOptionalText(stopDraft.iconName()));
     }
 
-    private void removeDayFromItinerary(ItineraryEntity itinerary, ItineraryDayEntity day) {
-        itinerary.getDays().removeIf(existingDay -> existingDay.getId().equals(day.getId()));
+    private void removeDayFromItinerary(ItineraryModel itinerary, ItineraryDayModel day) {
+        itinerary.getDays().removeIf(existingDay -> existingDay == day
+                || (day.getId() != null && day.getId().equals(existingDay.getId())));
     }
 
-    private void removeStopFromDay(ItineraryDayEntity day, ItineraryStopEntity stop) {
-        if (stop.getId() == null) {
-            return;
-        }
-        day.getStops().removeIf(existingStop -> stop.getId().equals(existingStop.getId()));
+    private void removeStopFromDay(ItineraryDayModel day, ItineraryStopModel stop) {
+        day.getStops().removeIf(existingStop -> existingStop == stop
+                || (stop.getId() != null && stop.getId().equals(existingStop.getId())));
     }
 
     private void ensureGroupNameAvailable(Long ownerId, String groupName, Long itineraryId) {
         boolean exists = itineraryId == null
-                ? this.itineraryJpaRepository.existsByOwnerIdAndGroupNameIgnoreCase(ownerId, groupName)
-                : this.itineraryJpaRepository.existsByOwnerIdAndGroupNameIgnoreCaseAndIdNot(ownerId, groupName,
+                ? this.itineraryRepository.existsByOwnerIdAndGroupNameIgnoreCase(ownerId, groupName)
+                : this.itineraryRepository.existsByOwnerIdAndGroupNameIgnoreCaseAndIdNot(ownerId, groupName,
                         itineraryId);
         if (exists) {
             throw new IllegalArgumentException("An itinerary with this groupName already exists");
         }
     }
 
-    private void renumberDays(ItineraryEntity itinerary) {
-        List<ItineraryDayEntity> orderedDays = new ArrayList<>(itinerary.getDays());
-        orderedDays.sort(Comparator.comparing(ItineraryDayEntity::getDayIndex).thenComparing(ItineraryDayEntity::getId,
+    private void renumberDays(ItineraryModel itinerary) {
+        List<ItineraryDayModel> orderedDays = new ArrayList<>(itinerary.getDays());
+        orderedDays.sort(Comparator.comparing(ItineraryDayModel::getDayIndex).thenComparing(ItineraryDayModel::getId,
                 Comparator.nullsLast(Long::compareTo)));
         for (int index = 0; index < orderedDays.size(); index++) {
             orderedDays.get(index).setDayIndex(index + 1);
         }
     }
 
-    private void normalizeStopOrders(ItineraryDayEntity day) {
-        List<ItineraryStopEntity> orderedStops = new ArrayList<>(day.getStops());
-        orderedStops.sort(Comparator.comparing(ItineraryStopEntity::getSortOrder)
-                .thenComparing(ItineraryStopEntity::getId, Comparator.nullsLast(Long::compareTo)));
+    private void normalizeStopOrders(ItineraryDayModel day) {
+        List<ItineraryStopModel> orderedStops = new ArrayList<>(day.getStops());
+        orderedStops.sort(Comparator.comparing(ItineraryStopModel::getSortOrder)
+                .thenComparing(ItineraryStopModel::getId, Comparator.nullsLast(Long::compareTo)));
         for (int index = 0; index < orderedStops.size(); index++) {
             orderedStops.get(index).setSortOrder(index + 1);
         }
     }
 
-    private void insertStop(ItineraryDayEntity day, ItineraryStopEntity stop, Integer requestedSortOrder) {
+    private void insertStop(ItineraryDayModel day, ItineraryStopModel stop, Integer requestedSortOrder) {
         removeStopFromDay(day, stop);
         int insertIndex = resolveInsertIndex(day, requestedSortOrder);
         day.getStops().add(insertIndex, stop);
         renumberStopsInCurrentOrder(day);
     }
 
-    private int resolveInsertIndex(ItineraryDayEntity day, Integer requestedSortOrder) {
+    private int resolveInsertIndex(ItineraryDayModel day, Integer requestedSortOrder) {
         if (requestedSortOrder == null || requestedSortOrder <= 0) {
             return day.getStops().size();
         }
         return Math.min(requestedSortOrder - 1, day.getStops().size());
     }
 
-    private void renumberStopsInCurrentOrder(ItineraryDayEntity day) {
+    private void renumberStopsInCurrentOrder(ItineraryDayModel day) {
         for (int index = 0; index < day.getStops().size(); index++) {
             day.getStops().get(index).setSortOrder(index + 1);
         }
     }
 
-    private void bumpVersion(ItineraryEntity itinerary) {
+    private void bumpVersion(ItineraryModel itinerary) {
         itinerary.setVersion(itinerary.getVersion() + 1);
     }
 
@@ -719,48 +658,48 @@ public class ItineraryService {
         return first != null ? first : second;
     }
 
-    private ItinerarySummaryResponse toSummaryResponse(ItinerarySummaryProjection itinerary) {
+    private ItinerarySummaryResponse toSummaryResponse(ItinerarySummaryModel itinerary) {
         return new ItinerarySummaryResponse(
-                itinerary.getId(),
-                itinerary.getGroupName(),
-                itinerary.getVersion(),
-                Math.toIntExact(itinerary.getTotalDays()),
-                Math.toIntExact(itinerary.getTotalStops()),
-                itinerary.getUpdatedAt());
+                itinerary.id(),
+                itinerary.groupName(),
+                itinerary.version(),
+                Math.toIntExact(itinerary.totalDays()),
+                Math.toIntExact(itinerary.totalStops()),
+                itinerary.updatedAt());
     }
 
-    private ItineraryResponse toResponse(List<ItineraryDetailRow> rows) {
+    private ItineraryResponse toResponse(List<ItineraryDetailRowModel> rows) {
         if (rows.isEmpty()) {
             throw new ResourceNotFoundException("Itinerary not found");
         }
 
-        ItineraryDetailRow firstRow = rows.get(0);
+        ItineraryDetailRowModel firstRow = rows.get(0);
         Map<Long, DayAccumulator> dayById = new LinkedHashMap<>();
 
-        for (ItineraryDetailRow row : rows) {
-            if (row.getDayId() == null) {
+        for (ItineraryDetailRowModel row : rows) {
+            if (row.dayId() == null) {
                 continue;
             }
 
-            DayAccumulator day = dayById.computeIfAbsent(row.getDayId(), ignored -> new DayAccumulator(
-                    row.getDayId(),
-                    row.getDayIndex(),
-                    row.getDayLabel(),
-                    row.getDateLabel()));
+            DayAccumulator day = dayById.computeIfAbsent(row.dayId(), ignored -> new DayAccumulator(
+                    row.dayId(),
+                    row.dayIndex(),
+                    row.dayLabel(),
+                    row.dateLabel()));
 
-            if (row.getStopId() != null) {
+            if (row.stopId() != null) {
                 day.stops().add(new ItineraryStopResponse(
-                        row.getStopId(),
-                        row.getSortOrder(),
-                        row.getStartTime(),
-                        row.getEndTime(),
-                        row.getTitle(),
-                        row.getPlaceName(),
-                        row.getNote(),
-                        row.getTransportToNext(),
-                        row.getEstimatedCost(),
-                        row.getColorHex(),
-                        row.getIconName()));
+                        row.stopId(),
+                        row.sortOrder(),
+                        row.startTime(),
+                        row.endTime(),
+                        row.title(),
+                        row.placeName(),
+                        row.note(),
+                        row.transportToNext(),
+                        row.estimatedCost(),
+                        row.colorHex(),
+                        row.iconName()));
             }
         }
 
@@ -774,13 +713,13 @@ public class ItineraryService {
                 .toList();
 
         return new ItineraryResponse(
-                firstRow.getItineraryId(),
-                firstRow.getGroupName(),
-                firstRow.getVersion(),
-                firstRow.getOwnerId(),
+                firstRow.itineraryId(),
+                firstRow.groupName(),
+                firstRow.version(),
+                firstRow.ownerId(),
                 days,
-                firstRow.getCreatedAt(),
-                firstRow.getUpdatedAt());
+                firstRow.createdAt(),
+                firstRow.updatedAt());
     }
 
     private record DayAccumulator(
@@ -792,6 +731,11 @@ public class ItineraryService {
         DayAccumulator(Long id, int dayIndex, String label, String dateLabel) {
             this(id, dayIndex, label, dateLabel, new ArrayList<>());
         }
+    }
+
+    private record StopLocation(
+            ItineraryDayModel day,
+            ItineraryStopModel stop) {
     }
 
     private record StoredAiProposal(
