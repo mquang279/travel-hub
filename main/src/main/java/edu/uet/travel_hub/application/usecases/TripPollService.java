@@ -28,19 +28,16 @@ public class TripPollService {
     private final TripPollJpaRepository tripPollJpaRepository;
     private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
     private final TripMemberJpaRepository tripMemberJpaRepository;
-    private final TripActivityLogService tripActivityLogService;
 
     public TripPollService(
             TripService tripService,
             TripPollJpaRepository tripPollJpaRepository,
             TripPollVoteJpaRepository tripPollVoteJpaRepository,
-            TripMemberJpaRepository tripMemberJpaRepository,
-            TripActivityLogService tripActivityLogService) {
+            TripMemberJpaRepository tripMemberJpaRepository) {
         this.tripService = tripService;
         this.tripPollJpaRepository = tripPollJpaRepository;
         this.tripPollVoteJpaRepository = tripPollVoteJpaRepository;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
-        this.tripActivityLogService = tripActivityLogService;
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +67,6 @@ public class TripPollService {
                 .category(request.category())
                 .createdBy(user)
                 .build());
-        this.tripActivityLogService.log(trip, user, "CREATE_POLL", "POLL", poll.getId(), "poll created");
         return toResponse(poll, currentUserId, Map.of(), 0L);
     }
 
@@ -94,8 +90,6 @@ public class TripPollService {
                                 .poll(poll)
                                 .user(user)
                                 .build()));
-
-        this.tripActivityLogService.log(trip, user, "TOGGLE_VOTE", "POLL", pollId, "vote toggled");
         return listPolls(tripId, currentUserId);
     }
 
@@ -107,7 +101,6 @@ public class TripPollService {
                 poll.setTitle(request.title().trim());
                 poll.setCategory(request.category());
                 TripPollEntity saved = this.tripPollJpaRepository.save(poll);
-                this.tripActivityLogService.log(saved.getTrip(), this.tripService.findUser(currentUserId), "UPDATE_POLL", "POLL", pollId, "poll updated");
                 return toResponse(saved, currentUserId, Map.of(), 0L);
         }
 
@@ -118,7 +111,6 @@ public class TripPollService {
                                 .orElseThrow(() -> new ResourceNotFoundException("Poll not found"));
                 poll.setClosed(true);
                 TripPollEntity saved = this.tripPollJpaRepository.save(poll);
-                this.tripActivityLogService.log(saved.getTrip(), this.tripService.findUser(currentUserId), "CLOSE_POLL", "POLL", pollId, "poll closed");
                 return toResponse(saved, currentUserId, Map.of(), 0L);
         }
 
@@ -128,7 +120,6 @@ public class TripPollService {
                 TripPollEntity poll = this.tripPollJpaRepository.findByIdAndTripId(pollId, tripId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Poll not found"));
                 this.tripPollJpaRepository.delete(poll);
-                this.tripActivityLogService.log(poll.getTrip(), this.tripService.findUser(currentUserId), "DELETE_POLL", "POLL", pollId, "poll deleted");
         }
 
     private TripPollResponse toResponse(TripPollEntity poll, Long currentUserId, Map<Long, Long> voteCounts, long maxVotes) {

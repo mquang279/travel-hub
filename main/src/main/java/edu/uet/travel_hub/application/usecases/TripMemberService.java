@@ -20,15 +20,12 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripMemberJp
 public class TripMemberService {
     private final TripService tripService;
     private final TripMemberJpaRepository tripMemberJpaRepository;
-    private final TripActivityLogService tripActivityLogService;
 
     public TripMemberService(
             TripService tripService,
-            TripMemberJpaRepository tripMemberJpaRepository,
-            TripActivityLogService tripActivityLogService) {
+            TripMemberJpaRepository tripMemberJpaRepository) {
         this.tripService = tripService;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
-        this.tripActivityLogService = tripActivityLogService;
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +50,6 @@ public class TripMemberService {
         member.setRole(TripMemberRole.MEMBER);
         member.setRespondedAt(java.time.Instant.now());
         TripMemberEntity saved = this.tripMemberJpaRepository.save(member);
-        this.tripActivityLogService.log(trip, trip.getLeader(), "APPROVE_MEMBER", "USER", requesterUserId, "member approved");
         return toMemberResponse(saved);
     }
 
@@ -69,7 +65,6 @@ public class TripMemberService {
         member.setStatus(TripMemberStatus.REJECTED);
         member.setRespondedAt(java.time.Instant.now());
         TripMemberEntity saved = this.tripMemberJpaRepository.save(member);
-        this.tripActivityLogService.log(trip, trip.getLeader(), "REJECT_MEMBER", "USER", requesterUserId, "member rejected");
         return toMemberResponse(saved);
     }
 
@@ -90,7 +85,6 @@ public class TripMemberService {
         }
 
         this.tripMemberJpaRepository.delete(member);
-        this.tripActivityLogService.log(trip, trip.getLeader(), "REMOVE_MEMBER", "USER", memberUserId, "member removed");
     }
 
     @Transactional
@@ -103,7 +97,6 @@ public class TripMemberService {
         }
 
         this.tripMemberJpaRepository.delete(currentMember);
-        this.tripActivityLogService.log(trip, currentMember.getUser(), "LEAVE_TRIP", "USER", currentUserId, "member left trip");
     }
 
     @Transactional
@@ -131,7 +124,6 @@ public class TripMemberService {
         }
 
         TripMemberEntity saved = this.tripMemberJpaRepository.save(targetMember);
-        this.tripActivityLogService.log(trip, trip.getLeader(), "UPDATE_MEMBER_ROLE", "USER", memberUserId, "member role updated");
         return toMemberResponse(saved);
     }
 

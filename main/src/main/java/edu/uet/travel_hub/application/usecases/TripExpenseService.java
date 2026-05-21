@@ -28,17 +28,14 @@ public class TripExpenseService {
     private final TripService tripService;
     private final TripExpenseJpaRepository tripExpenseJpaRepository;
     private final TripMemberJpaRepository tripMemberJpaRepository;
-    private final TripActivityLogService tripActivityLogService;
 
     public TripExpenseService(
             TripService tripService,
             TripExpenseJpaRepository tripExpenseJpaRepository,
-            TripMemberJpaRepository tripMemberJpaRepository,
-            TripActivityLogService tripActivityLogService) {
+                        TripMemberJpaRepository tripMemberJpaRepository) {
         this.tripService = tripService;
         this.tripExpenseJpaRepository = tripExpenseJpaRepository;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
-        this.tripActivityLogService = tripActivityLogService;
     }
 
     @Transactional(readOnly = true)
@@ -119,8 +116,6 @@ public class TripExpenseService {
                 .paidBy(paidBy)
                 .amount(request.amount())
                 .build());
-
-        this.tripActivityLogService.log(trip, this.tripService.findUser(currentUserId), "ADD_EXPENSE", "EXPENSE", saved.getId(), "expense added");
         return new TripExpenseTransactionResponse(
                 saved.getId(),
                 saved.getTitle(),
@@ -150,8 +145,6 @@ public class TripExpenseService {
         expense.setAmount(request.amount());
         expense.setPaidBy(paidBy);
         TripExpenseEntity saved = this.tripExpenseJpaRepository.save(expense);
-
-        this.tripActivityLogService.log(saved.getTrip(), this.tripService.findUser(currentUserId), "UPDATE_EXPENSE", "EXPENSE", saved.getId(), "expense updated");
         return new TripExpenseTransactionResponse(
                 saved.getId(),
                 saved.getTitle(),
@@ -169,7 +162,6 @@ public class TripExpenseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
 
         this.tripExpenseJpaRepository.delete(expense);
-        this.tripActivityLogService.log(expense.getTrip(), this.tripService.findUser(currentUserId), "DELETE_EXPENSE", "EXPENSE", expenseId, "expense deleted");
     }
 
     private String displayName(UserEntity user) {

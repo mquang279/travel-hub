@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
-import edu.uet.travel_hub.application.dto.response.TripActivityItemResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailHighlightsResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailResponse;
@@ -38,7 +37,6 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripMemberEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripExpenseJpaRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripActivityLogJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollVoteJpaRepository;
@@ -56,8 +54,6 @@ public class TripService {
     private final TripExpenseJpaRepository tripExpenseJpaRepository;
     private final TripPollJpaRepository tripPollJpaRepository;
     private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
-    private final TripActivityLogJpaRepository tripActivityLogJpaRepository;
-    private final TripActivityLogService tripActivityLogService;
     private final edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService;
 
     public TripService(
@@ -67,8 +63,6 @@ public class TripService {
             TripExpenseJpaRepository tripExpenseJpaRepository,
             TripPollJpaRepository tripPollJpaRepository,
             TripPollVoteJpaRepository tripPollVoteJpaRepository,
-            TripActivityLogJpaRepository tripActivityLogJpaRepository,
-            TripActivityLogService tripActivityLogService,
             edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService) {
         this.tripJpaRepository = tripJpaRepository;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
@@ -76,8 +70,6 @@ public class TripService {
         this.tripExpenseJpaRepository = tripExpenseJpaRepository;
         this.tripPollJpaRepository = tripPollJpaRepository;
         this.tripPollVoteJpaRepository = tripPollVoteJpaRepository;
-        this.tripActivityLogJpaRepository = tripActivityLogJpaRepository;
-        this.tripActivityLogService = tripActivityLogService;
         this.inviteCodeService = inviteCodeService;
     }
 
@@ -156,14 +148,6 @@ public class TripService {
 
         TripDetailHighlightsResponse highlights = buildHighlights(tripId);
 
-        List<TripActivityItemResponse> recentActivities = this.tripActivityLogJpaRepository
-            .findTop20ByTripIdOrderByCreatedAtDescIdDesc(tripId)
-            .stream()
-            .map(this::toActivityItem)
-            .filter(item -> item != null)
-            .limit(5)
-            .toList();
-
         TripInfoResponse tripInfo = new TripInfoResponse(
             trip.getId(),
             trip.getName(),
@@ -179,7 +163,7 @@ public class TripService {
             DEFAULT_MAX_MEMBERS);
 
         TripRole myRole = TripRoleMapper.fromMemberRole(membership.getRole());
-        return new TripDetailResponse(tripInfo, myRole.name(), members, highlights, recentActivities);
+    return new TripDetailResponse(tripInfo, myRole.name(), members, highlights);
     }
 
     @Transactional(readOnly = true)
@@ -246,7 +230,6 @@ public class TripService {
             .status(edu.uet.travel_hub.domain.enums.TripMemberStatus.ACTIVE)
             .build());
 
-        this.tripActivityLogService.log(saved, leader, "CREATE_TRIP", "TRIP", saved.getId(), "trip created");
         return saved.getId();
     }
 
@@ -281,14 +264,11 @@ public class TripService {
         trip.setBudgetMin(request.budgetMin());
         trip.setBudgetMax(request.budgetMax());
         this.tripJpaRepository.save(trip);
-        this.tripActivityLogService.log(trip, trip.getLeader(), "UPDATE_TRIP", "TRIP", tripId, "trip updated");
     }
 
     @Transactional
     public void deleteTrip(Long tripId, Long currentUserId) {
         TripEntity trip = requireLeaderTrip(tripId, currentUserId);
-        // Delete related entities first to avoid FK constraint violations
-        this.tripActivityLogJpaRepository.deleteByTripId(tripId);
         this.tripPollVoteJpaRepository.deleteVotesByTripId(tripId);
         this.tripExpenseJpaRepository.deleteByTripId(tripId);
         this.tripPollJpaRepository.deleteByTripId(tripId);
@@ -328,7 +308,6 @@ public class TripService {
         member.setRequestedAt(java.time.Instant.now());
         member.setRespondedAt(null);
         TripMemberEntity savedMember = this.tripMemberJpaRepository.save(member);
-        this.tripActivityLogService.log(trip, currentUser, "REQUEST_JOIN", "USER", currentUserId, "join request submitted");
         return new JoinTripResultResponse(trip.getId(), savedMember.getStatus().name(), "Yêu cầu tham gia đã được gửi, chờ trưởng nhóm phê duyệt");
     }
 
@@ -405,28 +384,6 @@ public class TripService {
                 .orElse(null);
 
         return new TripDetailHighlightsResponse(topExpense, winningPoll);
-    }
-
-    private TripActivityItemResponse toActivityItem(edu.uet.travel_hub.infrastructure.persistence.entity.TripActivityLogEntity log) {
-        String type = mapActivityType(log.getActionType(), log.getTargetType());
-        if (type == null) {
-            return null;
-        }
-        String actorName = log.getActor() == null ? null : displayName(log.getActor());
-        return new TripActivityItemResponse(type, log.getDescription(), actorName, log.getCreatedAt());
-    }
-
-    private String mapActivityType(String actionType, String targetType) {
-        if (actionType == null) {
-            return null;
-        }
-        return switch (actionType) {
-            case "ADD_EXPENSE" -> "EXPENSE_CREATED";
-            case "CREATE_POLL" -> "POLL_CREATED";
-            case "APPROVE_MEMBER", "REQUEST_JOIN" -> "MEMBER_JOINED";
-            case "UPDATE_TRIP" -> "TRIP_UPDATED";
-            default -> null;
-        };
     }
 
     private String displayName(UserEntity user) {
