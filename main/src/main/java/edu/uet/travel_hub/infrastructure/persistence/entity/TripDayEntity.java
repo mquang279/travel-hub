@@ -17,45 +17,47 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "itinerary_days")
+@Table(
+        name = "trip_days",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_trip_day_trip_date", columnNames = {"trip_id", "date"})
+        })
 @Getter
 @Setter
-@ToString(exclude = {"itinerary", "stops"})
+@ToString(exclude = {"trip", "activities"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ItineraryDayEntity {
+public class TripDayEntity {
     @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "itinerary_id", nullable = false)
-    private ItineraryEntity itinerary;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "trip_id", nullable = false)
+    private TripEntity trip;
 
     @Column(nullable = false)
-    private int dayIndex;
+    private java.time.LocalDate date;
 
-    @Column(nullable = false, length = 50)
-    private String label;
-
-    @Column(nullable = false, length = 100)
-    private String dateLabel;
+    @Column(nullable = false)
+    private int dayNumber;
 
     @Builder.Default
-    @OneToMany(mappedBy = "day", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("sortOrder ASC, id ASC")
-    @BatchSize(size = 200)
-    private List<ItineraryStopEntity> stops = new ArrayList<>();
+    @OneToMany(mappedBy = "tripDay", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC, id ASC")
+    @BatchSize(size = 100)
+    private List<TripActivityEntity> activities = new ArrayList<>();
 }

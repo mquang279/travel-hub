@@ -1,5 +1,8 @@
 package edu.uet.travel_hub.infrastructure.persistence.entity;
 
+import java.math.BigDecimal;
+import java.time.LocalTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -13,56 +16,50 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "itinerary_stops")
+@Table(name = "trip_activities")
 @Getter
 @Setter
-@ToString(exclude = {"day"})
+@ToString(exclude = {"tripDay"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ItineraryStopEntity {
+public class TripActivityEntity {
     @EqualsAndHashCode.Include
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "day_id", nullable = false)
-    private ItineraryDayEntity day;
-
-    @Column(nullable = false)
-    private int sortOrder;
-
-    @Column(length = 20)
-    private String startTime;
-
-    @Column(length = 20)
-    private String endTime;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "trip_day_id", nullable = false)
+    private TripDayEntity tripDay;
 
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(nullable = false, length = 200)
-    private String placeName;
-
     @Column(length = 2000)
-    private String note;
+    private String description;
+
+    private LocalTime startTime;
+    private LocalTime endTime;
+
+    @Column(length = 200)
+    private String locationName;
 
     @Column(length = 500)
-    private String transportToNext;
+    private String address;
 
-    @Column(length = 100)
-    private String estimatedCost;
+    @Column(length = 50)
+    private String type;
 
-    @Column
-    private Long colorHex;
+    @Column(nullable = false)
+    private int orderIndex;
 
-    @Column(length = 100)
-    private String iconName;
+    @Column(precision = 14, scale = 2)
+    private BigDecimal estimatedCost;
 }
