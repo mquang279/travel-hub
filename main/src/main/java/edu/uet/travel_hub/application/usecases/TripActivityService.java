@@ -25,17 +25,14 @@ public class TripActivityService implements TripActivityUseCase {
     private final TripService tripService;
     private final TripDayJpaRepository tripDayJpaRepository;
     private final TripActivityJpaRepository tripActivityJpaRepository;
-    private final TripActivityLogService tripActivityLogService;
 
     public TripActivityService(
             TripService tripService,
             TripDayJpaRepository tripDayJpaRepository,
-            TripActivityJpaRepository tripActivityJpaRepository,
-            TripActivityLogService tripActivityLogService) {
+            TripActivityJpaRepository tripActivityJpaRepository) {
         this.tripService = tripService;
         this.tripDayJpaRepository = tripDayJpaRepository;
         this.tripActivityJpaRepository = tripActivityJpaRepository;
-        this.tripActivityLogService = tripActivityLogService;
     }
 
     @Override
@@ -68,13 +65,6 @@ public class TripActivityService implements TripActivityUseCase {
                 .build();
 
         TripActivityEntity saved = this.tripActivityJpaRepository.save(activity);
-        this.tripActivityLogService.log(
-                trip,
-                this.tripService.findUser(currentUserId),
-                "ADD_ACTIVITY",
-                "TRIP_ACTIVITY",
-                saved.getId(),
-                "activity added");
         return toActivityResponse(saved);
     }
 
@@ -104,20 +94,13 @@ public class TripActivityService implements TripActivityUseCase {
 
         TripActivityEntity saved = this.tripActivityJpaRepository.save(activity);
         deleteEmptyDay(previousDay);
-        this.tripActivityLogService.log(
-                trip,
-                this.tripService.findUser(currentUserId),
-                "UPDATE_ACTIVITY",
-                "TRIP_ACTIVITY",
-                saved.getId(),
-                "activity updated");
         return toActivityResponse(saved);
     }
 
     @Override
     @Transactional
     public void deleteActivity(Long tripId, Long activityId, Long currentUserId) {
-        TripEntity trip = this.tripService.requireActiveMemberTrip(tripId, currentUserId);
+        this.tripService.requireActiveMemberTrip(tripId, currentUserId);
         TripActivityEntity activity = this.tripActivityJpaRepository.findByIdAndTripDayTripId(activityId, tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip activity not found"));
         TripDayEntity tripDay = activity.getTripDay();
@@ -125,13 +108,6 @@ public class TripActivityService implements TripActivityUseCase {
         this.tripActivityJpaRepository.delete(activity);
         this.tripActivityJpaRepository.flush();
         deleteEmptyDay(tripDay);
-        this.tripActivityLogService.log(
-                trip,
-                this.tripService.findUser(currentUserId),
-                "DELETE_ACTIVITY",
-                "TRIP_ACTIVITY",
-                activityId,
-                "activity deleted");
     }
 
     private TripDayEntity findOrCreateTripDay(TripEntity trip, LocalDate date) {

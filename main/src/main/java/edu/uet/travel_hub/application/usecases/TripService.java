@@ -288,25 +288,31 @@ public class TripService {
         }
 
         TripMemberEntity member = this.tripMemberJpaRepository.findByTripIdAndUserId(trip.getId(), currentUserId)
-                .orElseGet(() -> TripMemberEntity.builder()
-                        .trip(trip)
-                        .user(currentUser)
-                        .role(TripMemberRole.MEMBER)
-                        .status(TripMemberStatus.PENDING)
-                        .build());
+                .orElse(null);
 
-        if (member.getStatus() == TripMemberStatus.ACTIVE) {
-            throw new DataIntegrityViolationException("Bạn đã là thành viên của chuyến đi này");
+        if (member != null) {
+            if (member.getStatus() == TripMemberStatus.ACTIVE) {
+                throw new DataIntegrityViolationException("Bạn đã là thành viên của chuyến đi này");
+            }
+
+            if (member.getStatus() == TripMemberStatus.PENDING) {
+                throw new DataIntegrityViolationException("Yêu cầu tham gia đã được gửi");
+            }
+
+            member.setStatus(TripMemberStatus.PENDING);
+            member.setRole(TripMemberRole.MEMBER);
+            member.setRequestedAt(java.time.Instant.now());
+            member.setRespondedAt(null);
+        } else {
+            member = TripMemberEntity.builder()
+                    .trip(trip)
+                    .user(currentUser)
+                    .role(TripMemberRole.MEMBER)
+                    .status(TripMemberStatus.PENDING)
+                    .requestedAt(java.time.Instant.now())
+                    .build();
         }
 
-        if (member.getStatus() == TripMemberStatus.PENDING) {
-            throw new DataIntegrityViolationException("Yêu cầu tham gia đã được gửi");
-        }
-
-        member.setStatus(TripMemberStatus.PENDING);
-        member.setRole(TripMemberRole.MEMBER);
-        member.setRequestedAt(java.time.Instant.now());
-        member.setRespondedAt(null);
         TripMemberEntity savedMember = this.tripMemberJpaRepository.save(member);
         return new JoinTripResultResponse(trip.getId(), savedMember.getStatus().name(), "Yêu cầu tham gia đã được gửi, chờ trưởng nhóm phê duyệt");
     }
