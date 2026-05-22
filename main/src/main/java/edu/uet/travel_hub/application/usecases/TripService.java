@@ -5,11 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -19,10 +16,7 @@ import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
-import edu.uet.travel_hub.application.dto.response.TripDetailHighlightsResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailResponse;
-import edu.uet.travel_hub.application.dto.response.TripDetailTopExpenseResponse;
-import edu.uet.travel_hub.application.dto.response.TripDetailWinningPollResponse;
 import edu.uet.travel_hub.application.dto.response.TripInfoResponse;
 import edu.uet.travel_hub.application.dto.response.TripMemberResponse;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
@@ -31,15 +25,11 @@ import edu.uet.travel_hub.domain.enums.TripMemberStatus;
 import edu.uet.travel_hub.domain.enums.TripMemberRole;
 import edu.uet.travel_hub.domain.enums.TripStatus;
 import edu.uet.travel_hub.domain.mapper.TripRoleMapper;
-import edu.uet.travel_hub.infrastructure.persistence.entity.TripExpenseEntity;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.PollVoteCount;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripMemberEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripExpenseJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripJpaRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollJpaRepository;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollVoteJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripMemberJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
@@ -52,8 +42,6 @@ public class TripService {
     private final UserJpaRepository userJpaRepository;
     private static final DateTimeFormatter DISPLAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private final TripExpenseJpaRepository tripExpenseJpaRepository;
-    private final TripPollJpaRepository tripPollJpaRepository;
-    private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
     private final edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService;
 
     public TripService(
@@ -61,15 +49,11 @@ public class TripService {
             TripMemberJpaRepository tripMemberJpaRepository,
             UserJpaRepository userJpaRepository,
             TripExpenseJpaRepository tripExpenseJpaRepository,
-            TripPollJpaRepository tripPollJpaRepository,
-            TripPollVoteJpaRepository tripPollVoteJpaRepository,
             edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService) {
         this.tripJpaRepository = tripJpaRepository;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
         this.userJpaRepository = userJpaRepository;
         this.tripExpenseJpaRepository = tripExpenseJpaRepository;
-        this.tripPollJpaRepository = tripPollJpaRepository;
-        this.tripPollVoteJpaRepository = tripPollVoteJpaRepository;
         this.inviteCodeService = inviteCodeService;
     }
 
@@ -146,8 +130,6 @@ public class TripService {
             .map(this::toMemberResponseWithRole)
             .toList();
 
-        TripDetailHighlightsResponse highlights = buildHighlights(tripId);
-
         TripInfoResponse tripInfo = new TripInfoResponse(
             trip.getId(),
             trip.getName(),
@@ -163,7 +145,7 @@ public class TripService {
             DEFAULT_MAX_MEMBERS);
 
         TripRole myRole = TripRoleMapper.fromMemberRole(membership.getRole());
-    return new TripDetailResponse(tripInfo, myRole.name(), members, highlights);
+        return new TripDetailResponse(tripInfo, myRole.name(), members);
     }
 
     @Transactional(readOnly = true)
@@ -269,9 +251,7 @@ public class TripService {
     @Transactional
     public void deleteTrip(Long tripId, Long currentUserId) {
         TripEntity trip = requireLeaderTrip(tripId, currentUserId);
-        this.tripPollVoteJpaRepository.deleteVotesByTripId(tripId);
         this.tripExpenseJpaRepository.deleteByTripId(tripId);
-        this.tripPollJpaRepository.deleteByTripId(tripId);
         // Delete trip (members will cascade delete)
         this.tripJpaRepository.delete(trip);
     }
@@ -371,25 +351,6 @@ public class TripService {
 
     private TripMemberResponse toMemberResponseWithRole(TripMemberEntity member) {
         return toMemberResponse(member);
-    }
-
-    private TripDetailHighlightsResponse buildHighlights(Long tripId) {
-        TripDetailTopExpenseResponse topExpense = this.tripExpenseJpaRepository.findByTripIdOrderByExpenseDateDescIdDesc(tripId)
-                .stream()
-                .max(Comparator.comparing(TripExpenseEntity::getAmount))
-                .map(expense -> new TripDetailTopExpenseResponse(expense.getTitle(), expense.getAmount()))
-                .orElse(null);
-
-        Map<Long, Long> voteCounts = this.tripPollVoteJpaRepository.countVotesByPollForTrip(tripId).stream()
-                .collect(Collectors.toMap(PollVoteCount::getPollId, PollVoteCount::getCount));
-        TripDetailWinningPollResponse winningPoll = this.tripPollJpaRepository.findByTripIdOrderByCreatedAtDesc(tripId).stream()
-                .map(poll -> Map.entry(poll, voteCounts.getOrDefault(poll.getId(), 0L)))
-                .filter(entry -> entry.getValue() > 0)
-                .max(Map.Entry.comparingByValue())
-                .map(entry -> new TripDetailWinningPollResponse(entry.getKey().getTitle(), entry.getValue().intValue()))
-                .orElse(null);
-
-        return new TripDetailHighlightsResponse(topExpense, winningPoll);
     }
 
     private String displayName(UserEntity user) {

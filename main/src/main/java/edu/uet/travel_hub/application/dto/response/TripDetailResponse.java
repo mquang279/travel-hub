@@ -5,6 +5,5 @@ import java.util.List;
 public record TripDetailResponse(
         TripInfoResponse tripInfo,
         String myRole,
-        List<TripMemberResponse> members,
-        TripDetailHighlightsResponse highlights) {
+        List<TripMemberResponse> members) {
 }

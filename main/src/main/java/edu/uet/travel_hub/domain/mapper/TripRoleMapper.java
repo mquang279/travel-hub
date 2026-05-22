@@ -12,13 +12,8 @@ public final class TripRoleMapper {
 
     public static TripRole fromMemberRole(TripMemberRole memberRole) {
         if (memberRole == null) return TripRole.NON_MEMBER;
-        switch (memberRole) {
-            case LEADER:
-                return TripRole.LEADER;
-            case MEMBER:
-            default:
-                return TripRole.MEMBER;
-        }
+        if (memberRole == TripMemberRole.LEADER) return TripRole.LEADER;
+        return TripRole.MEMBER;
     }
 
     public static TripRole determineRole(Optional<TripMemberEntity> memberOpt, boolean isPending) {
