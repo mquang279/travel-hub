@@ -103,4 +103,16 @@ public class PostRepositoryImpl implements PostRepository {
         return term == null ? "" : term.trim();
     }
 
+    @Override
+    public PaginationResponse<PostModel> getLikedPostsOfUser(Long userId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getLikedPostsOfUser'");
+    }
+
+    @Override
+    public PaginationResponse<PostModel> getSavedPostOfUser(Long userId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getSavedPostOfUser'");
+    }
+
 }
