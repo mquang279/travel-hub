@@ -1,9 +1,12 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.impl;
 
+import java.time.Instant;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.port.out.NotificationRepository;
@@ -56,6 +59,12 @@ public class NotificationRepositoryImpl implements NotificationRepository {
         Page<NotificationEntity> notifications = this.notificationJpaRepository.findByUserIdAndIsReadFalse(userId,
                 request);
         return toPaginationResponse(notifications);
+    }
+
+    @Override
+    @Transactional
+    public void markAllUnreadAsRead(Long userId) {
+        this.notificationJpaRepository.markAllUnreadAsReadByUserId(userId, Instant.now());
     }
 
     private PaginationResponse<NotificationModel> toPaginationResponse(Page<NotificationEntity> notifications) {
