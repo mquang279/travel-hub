@@ -10,4 +10,6 @@ public interface NotificationRepository {
     PaginationResponse<NotificationModel> get(Long userId, int page, int pageSize);
 
     PaginationResponse<NotificationModel> getUnread(Long userId, int page, int pageSize);
+
+    void markAllUnreadAsRead(Long userId);
 }
