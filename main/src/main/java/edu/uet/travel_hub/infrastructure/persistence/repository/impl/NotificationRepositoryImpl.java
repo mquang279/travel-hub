@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.port.out.NotificationRepository;
+import edu.uet.travel_hub.domain.enums.NotificationType;
 import edu.uet.travel_hub.domain.model.NotificationModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.NotificationEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
@@ -23,13 +24,15 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     private final NotificationPersistenceMapper mapper;
 
     @Override
-    public void save(Long userId, String title, String body) {
+    public void save(Long userId, String title, String body, NotificationType type, Long targetId) {
         UserEntity userEntity = this.userJpaRepository.findById(userId).get();
         NotificationEntity notificationEntity = NotificationEntity.builder()
                 .body(body)
                 .isRead(false)
                 .title(title)
                 .user(userEntity)
+                .type(type)
+                .targetId(targetId)
                 .build();
         this.notificationJpaRepository.save(notificationEntity);
     }
