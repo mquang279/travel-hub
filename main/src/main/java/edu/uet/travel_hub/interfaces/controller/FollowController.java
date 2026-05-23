@@ -4,6 +4,7 @@ import edu.uet.travel_hub.application.port.in.FollowUserUseCase;
 import edu.uet.travel_hub.application.port.in.GetFollowersUseCase;
 import edu.uet.travel_hub.application.port.in.GetFollowingUseCase;
 import edu.uet.travel_hub.application.port.in.UnfollowUserUseCase;
+import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.domain.dto.response.UserFollowResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,8 +28,7 @@ public class FollowController {
     private final GetFollowingUseCase getFollowingUseCase;
     private final FollowUserUseCase followUserUseCase;
     private final UnfollowUserUseCase unfollowUserUseCase;
-
-    private static final Long MOCK_CURRENT_USER_ID = 1L;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping("/{userId}/followers")
     public ResponseEntity<Page<UserFollowResponse>> getFollowers(
@@ -36,7 +36,8 @@ public class FollowController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "30") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(getFollowersUseCase.getFollowers(MOCK_CURRENT_USER_ID, userId, pageable));
+        Long currentUserId = currentUserProvider.getOptionalCurrentUserId().orElse(null);
+        return ResponseEntity.ok(getFollowersUseCase.getFollowers(currentUserId, userId, pageable));
     }
 
     @GetMapping("/{userId}/following")
@@ -45,18 +46,21 @@ public class FollowController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "30") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(getFollowingUseCase.getFollowing(MOCK_CURRENT_USER_ID, userId, pageable));
+        Long currentUserId = currentUserProvider.getOptionalCurrentUserId().orElse(null);
+        return ResponseEntity.ok(getFollowingUseCase.getFollowing(currentUserId, userId, pageable));
     }
 
     @PostMapping("/{targetUserId}/follow")
     public ResponseEntity<Void> followUser(@PathVariable Long targetUserId) {
-        followUserUseCase.followUser(MOCK_CURRENT_USER_ID, targetUserId);
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        followUserUseCase.followUser(currentUserId, targetUserId);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{targetUserId}/follow")
     public ResponseEntity<Void> unfollowUser(@PathVariable Long targetUserId) {
-        unfollowUserUseCase.unfollowUser(MOCK_CURRENT_USER_ID, targetUserId);
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        unfollowUserUseCase.unfollowUser(currentUserId, targetUserId);
         return ResponseEntity.ok().build();
     }
 }
