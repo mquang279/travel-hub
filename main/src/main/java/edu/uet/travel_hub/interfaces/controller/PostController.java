@@ -15,6 +15,7 @@ import edu.uet.travel_hub.application.port.in.CreatePostUseCase;
 import edu.uet.travel_hub.application.port.in.DeleteCommentUseCase;
 import edu.uet.travel_hub.application.port.in.GetAllPostsUseCase;
 import edu.uet.travel_hub.application.port.in.GetCommentsOfPostUseCase;
+import edu.uet.travel_hub.application.port.in.GetPostByIdUseCase;
 import edu.uet.travel_hub.application.port.in.LikePostUseCase;
 import edu.uet.travel_hub.application.port.in.ModifyPostUseCase;
 import edu.uet.travel_hub.application.port.in.UnlikePostUseCase;
@@ -37,6 +38,7 @@ public class PostController {
     private final CreatePostUseCase createPostUseCase;
     private final ModifyPostUseCase modifyPostUseCase;
     private final GetAllPostsUseCase getAllPostsUseCase;
+    private final GetPostByIdUseCase getPostByIdUseCase;
     private final GetCommentsOfPostUseCase getCommentsOfPostUseCase;
     private final LikePostUseCase likePostUseCase;
     private final CommentPostUseCase commentPostUseCase;
@@ -45,12 +47,14 @@ public class PostController {
     private final PostMapper mapper;
 
     public PostController(CreatePostUseCase createPostUseCase, ModifyPostUseCase modifyPostUseCase,
-            GetAllPostsUseCase getAllPostsUseCase, GetCommentsOfPostUseCase getCommentsOfPostUseCase,
-            LikePostUseCase likePostUseCase, CommentPostUseCase commentPostUseCase,
+            GetAllPostsUseCase getAllPostsUseCase, GetPostByIdUseCase getPostByIdUseCase,
+            GetCommentsOfPostUseCase getCommentsOfPostUseCase, LikePostUseCase likePostUseCase,
+            CommentPostUseCase commentPostUseCase,
             DeleteCommentUseCase deleteCommentUseCase, UnlikePostUseCase unlikePostUseCase, PostMapper mapper) {
         this.createPostUseCase = createPostUseCase;
         this.modifyPostUseCase = modifyPostUseCase;
         this.getAllPostsUseCase = getAllPostsUseCase;
+        this.getPostByIdUseCase = getPostByIdUseCase;
         this.getCommentsOfPostUseCase = getCommentsOfPostUseCase;
         this.likePostUseCase = likePostUseCase;
         this.commentPostUseCase = commentPostUseCase;
@@ -84,6 +88,13 @@ public class PostController {
                 posts.totalPages(),
                 posts.totalElements(),
                 posts.data().stream().map(this.mapper::toDto).toList());
+        return ResponseEntity.ok().body(response);
+    }
+
+    @GetMapping("/{postId}")
+    public ResponseEntity<PostResponse> getPostById(@PathVariable Long postId) {
+        PostModel post = this.getPostByIdUseCase.get(postId);
+        PostResponse response = this.mapper.toDto(post);
         return ResponseEntity.ok().body(response);
     }
 

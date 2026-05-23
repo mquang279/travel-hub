@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -14,6 +16,10 @@ public interface PostJpaRepository extends JpaRepository<PostEntity, Long> {
     @Override
     @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
     Page<PostEntity> findAll(Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
+    Optional<PostEntity> findById(Long id);
 
     @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
     @Query("SELECT p FROM PostEntity p WHERE p.user.id = :userId ORDER BY p.createdAt DESC, p.id DESC")
