@@ -1,5 +1,6 @@
 package edu.uet.travel_hub.application.usecases;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -196,14 +197,20 @@ public class TravelPlaceService {
 
     @Transactional(readOnly = true)
     public PaginationResponse<TravelPlaceViewHistoryResponse> getViewHistory(Long currentUserId, int page, int pageSize) {
-        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "viewedAt", "id"));
-        Page<TravelPlaceViewHistoryEntity> history = this.travelPlaceViewHistoryJpaRepository
-                .findByUserIdOrderByViewedAtDescIdDesc(currentUserId, pageable);
+        int safePage = Math.max(0, page);
+        int safePageSize = Math.max(1, pageSize);
+        List<TravelPlaceViewHistoryEntity> collapsedHistory = collapseConsecutiveViewHistory(
+                this.travelPlaceViewHistoryJpaRepository.findByUserIdOrderByViewedAtDescIdDesc(currentUserId));
+        int totalElements = collapsedHistory.size();
+        int totalPages = (int) Math.ceil((double) totalElements / safePageSize);
+        int fromIndex = Math.min(safePage * safePageSize, totalElements);
+        int toIndex = Math.min(fromIndex + safePageSize, totalElements);
+        List<TravelPlaceViewHistoryEntity> pageContent = collapsedHistory.subList(fromIndex, toIndex);
 
         Map<Long, String> mainImages = resolveMainImageByPlaceId(
-                history.getContent().stream().map(item -> item.getPlace().getId()).toList());
+                pageContent.stream().map(item -> item.getPlace().getId()).toList());
 
-        List<TravelPlaceViewHistoryResponse> data = history.getContent().stream()
+        List<TravelPlaceViewHistoryResponse> data = pageContent.stream()
                 .map(item -> new TravelPlaceViewHistoryResponse(
                         item.getPlace().getId(),
                         item.getPlace().getName(),
@@ -212,8 +219,12 @@ public class TravelPlaceService {
                         item.getViewedAt()))
                 .toList();
 
-        return new PaginationResponse<>(history.getNumber(), history.getSize(), history.getTotalPages(),
-                history.getTotalElements(), data);
+        return new PaginationResponse<TravelPlaceViewHistoryResponse>(
+                safePage,
+                safePageSize,
+                totalPages,
+                (long) totalElements,
+                data);
     }
 
     @Transactional(readOnly = true)
@@ -452,6 +463,15 @@ public class TravelPlaceService {
     private void recordViewHistorySafely(Long placeId, Long userId) {
         try {
             this.sideEffectTransactionTemplate.executeWithoutResult(status -> {
+                Optional<TravelPlaceViewHistoryEntity> latestHistory =
+                        this.travelPlaceViewHistoryJpaRepository.findFirstByUserIdOrderByViewedAtDescIdDesc(userId);
+                if (latestHistory.isPresent()
+                        && Objects.equals(latestHistory.get().getPlace().getId(), placeId)) {
+                    TravelPlaceViewHistoryEntity latest = latestHistory.get();
+                    latest.setViewedAt(Instant.now());
+                    this.travelPlaceViewHistoryJpaRepository.save(latest);
+                    return;
+                }
                 TravelPlaceEntity placeReference = this.travelPlaceJpaRepository.getReferenceById(placeId);
                 UserEntity userReference = this.userJpaRepository.getReferenceById(userId);
                 this.travelPlaceViewHistoryJpaRepository.save(TravelPlaceViewHistoryEntity.builder()
@@ -463,6 +483,25 @@ public class TravelPlaceService {
             log.warn("Unable to record travel place view history for placeId={} userId={}",
                     placeId, userId, exception);
         }
+    }
+
+    private List<TravelPlaceViewHistoryEntity> collapseConsecutiveViewHistory(
+            List<TravelPlaceViewHistoryEntity> history) {
+        if (history == null || history.isEmpty()) {
+            return List.of();
+        }
+
+        List<TravelPlaceViewHistoryEntity> collapsed = new ArrayList<>();
+        Long previousPlaceId = null;
+        for (TravelPlaceViewHistoryEntity item : history) {
+            Long placeId = item.getPlace().getId();
+            if (Objects.equals(previousPlaceId, placeId)) {
+                continue;
+            }
+            collapsed.add(item);
+            previousPlaceId = placeId;
+        }
+        return collapsed;
     }
 
     private Map<Long, String> resolveMainImageByPlaceId(Collection<Long> placeIds) {
