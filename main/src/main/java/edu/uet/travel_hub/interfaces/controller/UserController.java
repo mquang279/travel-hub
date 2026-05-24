@@ -9,13 +9,16 @@ import edu.uet.travel_hub.application.port.in.UpdateProfileUseCase;
 import edu.uet.travel_hub.application.port.in.UploadAvatarUseCase;
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.dto.response.PostResponse;
+import edu.uet.travel_hub.application.dto.response.TopTravelerResponse;
 import edu.uet.travel_hub.application.mapper.PostMapper;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.usecases.UserPreferenceService;
+import edu.uet.travel_hub.application.usecases.TopTravelerService;
 import edu.uet.travel_hub.domain.dto.request.PreferenceUpdateRequest;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
 import edu.uet.travel_hub.domain.dto.response.PreferenceResponse;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
+import edu.uet.travel_hub.domain.enums.TopTravelerPeriod;
 import edu.uet.travel_hub.domain.model.PostModel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +46,7 @@ public class UserController {
 	private final UpdateProfileUseCase updateProfileUseCase;
 	private final UploadAvatarUseCase uploadAvatarUseCase;
 	private final UserPreferenceService userPreferenceService;
+	private final TopTravelerService topTravelerService;
 	private final CurrentUserProvider currentUserProvider;
 	private final PostMapper postMapper;
 
@@ -50,6 +54,14 @@ public class UserController {
 	public ResponseEntity<UserProfileResponse> getMyProfile() {
 		Long currentUserId = currentUserProvider.getCurrentUserId();
 		return ResponseEntity.ok(getUserProfileUseCase.getProfile(currentUserId, currentUserId));
+	}
+
+	@GetMapping("/top-travelers")
+	public ResponseEntity<PaginationResponse<TopTravelerResponse>> getTopTravelers(
+			@RequestParam(defaultValue = "WEEK") TopTravelerPeriod period,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "4") int pageSize) {
+		return ResponseEntity.ok(topTravelerService.getTopTravelers(period, page, pageSize));
 	}
 
 	@GetMapping("/{userId}")
