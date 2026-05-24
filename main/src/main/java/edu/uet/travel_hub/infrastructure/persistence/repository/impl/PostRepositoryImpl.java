@@ -72,13 +72,7 @@ public class PostRepositoryImpl implements PostRepository {
     public PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize) {
         PageRequest request = PageRequest.of(pageNumber, pageSize);
         Page<PostEntity> posts = this.postJpaRepository.searchByDescription(normalizeSearchTerm(description), request);
-        PaginationResponse<PostModel> response = new PaginationResponse<PostModel>(
-                posts.getNumber(),
-                posts.getSize(),
-                posts.getTotalPages(),
-                posts.getTotalElements(),
-                posts.getContent().stream().map(mapper::toDomain).toList());
-        return response;
+        return toPaginationResponse(posts);
     }
 
     @Override
@@ -104,15 +98,26 @@ public class PostRepositoryImpl implements PostRepository {
     }
 
     @Override
-    public PaginationResponse<PostModel> getLikedPostsOfUser(Long userId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getLikedPostsOfUser'");
+    public PaginationResponse<PostModel> getLikedPostsOfUser(Long userId, int pageNumber, int pageSize) {
+        PageRequest request = PageRequest.of(pageNumber, pageSize);
+        Page<PostEntity> posts = this.postJpaRepository.findLikedPostsByUserId(userId, request);
+        return toPaginationResponse(posts);
     }
 
     @Override
-    public PaginationResponse<PostModel> getSavedPostOfUser(Long userId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSavedPostOfUser'");
+    public PaginationResponse<PostModel> getSavedPostOfUser(Long userId, int pageNumber, int pageSize) {
+        PageRequest request = PageRequest.of(pageNumber, pageSize);
+        Page<PostEntity> posts = this.postJpaRepository.findSavedPostsByUserId(userId, request);
+        return toPaginationResponse(posts);
+    }
+
+    private PaginationResponse<PostModel> toPaginationResponse(Page<PostEntity> posts) {
+        return new PaginationResponse<PostModel>(
+                posts.getNumber(),
+                posts.getSize(),
+                posts.getTotalPages(),
+                posts.getTotalElements(),
+                posts.getContent().stream().map(mapper::toDomain).toList());
     }
 
 }

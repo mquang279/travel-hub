@@ -9,6 +9,7 @@ import edu.uet.travel_hub.application.dto.request.ModifyPostRequest;
 import edu.uet.travel_hub.application.dto.response.LikePostResponse;
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.dto.response.PostResponse;
+import edu.uet.travel_hub.application.dto.response.SavePostResponse;
 import edu.uet.travel_hub.application.mapper.PostMapper;
 import edu.uet.travel_hub.application.port.in.CommentPostUseCase;
 import edu.uet.travel_hub.application.port.in.CreatePostUseCase;
@@ -18,6 +19,7 @@ import edu.uet.travel_hub.application.port.in.GetCommentsOfPostUseCase;
 import edu.uet.travel_hub.application.port.in.GetPostByIdUseCase;
 import edu.uet.travel_hub.application.port.in.LikePostUseCase;
 import edu.uet.travel_hub.application.port.in.ModifyPostUseCase;
+import edu.uet.travel_hub.application.port.in.SavePostUseCase;
 import edu.uet.travel_hub.application.port.in.UnlikePostUseCase;
 import edu.uet.travel_hub.domain.model.CommentModel;
 import edu.uet.travel_hub.domain.model.PostModel;
@@ -44,13 +46,15 @@ public class PostController {
     private final CommentPostUseCase commentPostUseCase;
     private final DeleteCommentUseCase deleteCommentUseCase;
     private final UnlikePostUseCase unlikePostUseCase;
+    private final SavePostUseCase savePostUseCase;
     private final PostMapper mapper;
 
     public PostController(CreatePostUseCase createPostUseCase, ModifyPostUseCase modifyPostUseCase,
             GetAllPostsUseCase getAllPostsUseCase, GetPostByIdUseCase getPostByIdUseCase,
             GetCommentsOfPostUseCase getCommentsOfPostUseCase, LikePostUseCase likePostUseCase,
             CommentPostUseCase commentPostUseCase,
-            DeleteCommentUseCase deleteCommentUseCase, UnlikePostUseCase unlikePostUseCase, PostMapper mapper) {
+            DeleteCommentUseCase deleteCommentUseCase, UnlikePostUseCase unlikePostUseCase,
+            SavePostUseCase savePostUseCase, PostMapper mapper) {
         this.createPostUseCase = createPostUseCase;
         this.modifyPostUseCase = modifyPostUseCase;
         this.getAllPostsUseCase = getAllPostsUseCase;
@@ -60,6 +64,7 @@ public class PostController {
         this.commentPostUseCase = commentPostUseCase;
         this.deleteCommentUseCase = deleteCommentUseCase;
         this.unlikePostUseCase = unlikePostUseCase;
+        this.savePostUseCase = savePostUseCase;
         this.mapper = mapper;
     }
 
@@ -122,6 +127,12 @@ public class PostController {
     @DeleteMapping("/{postId}/unlike")
     public ResponseEntity<LikePostResponse> unlike(@PathVariable Long postId) {
         LikePostResponse response = this.unlikePostUseCase.unlike(postId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{postId}/save")
+    public ResponseEntity<SavePostResponse> save(@PathVariable Long postId) {
+        SavePostResponse response = this.savePostUseCase.save(postId);
         return ResponseEntity.ok(response);
     }
 
