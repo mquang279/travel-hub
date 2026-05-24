@@ -35,7 +35,7 @@ import org.hibernate.annotations.BatchSize;
 @Table(name = "users")
 @Getter
 @Setter
-@ToString(exclude = {"posts", "likes", "comments"})
+@ToString(exclude = {"posts", "likes", "comments", "savedPosts"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @AllArgsConstructor
 @NoArgsConstructor
@@ -113,6 +113,9 @@ public class UserEntity {
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private List<CommentEntity> comments;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<SavedPostEntity> savedPosts;
 
     @PrePersist
     public void handleBeforeCreate() {
