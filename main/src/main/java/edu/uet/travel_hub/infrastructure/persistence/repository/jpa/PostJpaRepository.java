@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -15,6 +17,10 @@ public interface PostJpaRepository extends JpaRepository<PostEntity, Long> {
     @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
     Page<PostEntity> findAll(Pageable pageable);
 
+    @Override
+    @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
+    Optional<PostEntity> findById(Long id);
+
     @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
     @Query("SELECT p FROM PostEntity p WHERE p.user.id = :userId ORDER BY p.createdAt DESC, p.id DESC")
     Page<PostEntity> findByUserId(@Param("userId") Long userId, Pageable pageable);
@@ -26,6 +32,22 @@ public interface PostJpaRepository extends JpaRepository<PostEntity, Long> {
             ORDER BY p.createdAt DESC, p.id DESC
             """)
     Page<PostEntity> searchByDescription(@Param("description") String description, Pageable pageable);
+
+    @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
+    @Query("""
+            SELECT l.post FROM LikeEntity l
+            WHERE l.user.id = :userId
+            ORDER BY l.createdAt DESC, l.id DESC
+            """)
+    Page<PostEntity> findLikedPostsByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
+    @Query("""
+            SELECT s.post FROM SavedPostEntity s
+            WHERE s.user.id = :userId
+            ORDER BY s.createdAt DESC, s.id DESC
+            """)
+    Page<PostEntity> findSavedPostsByUserId(@Param("userId") Long userId, Pageable pageable);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PostEntity p SET p.likeCount = p.likeCount + 1 WHERE p.id = :postId")

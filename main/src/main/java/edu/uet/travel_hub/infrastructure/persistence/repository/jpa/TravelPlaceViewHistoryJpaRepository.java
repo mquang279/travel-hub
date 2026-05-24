@@ -1,6 +1,7 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,12 @@ public interface TravelPlaceViewHistoryJpaRepository extends JpaRepository<Trave
     @EntityGraph(attributePaths = { "place", "place.province" })
     Page<TravelPlaceViewHistoryEntity> findByUserIdOrderByViewedAtDescIdDesc(Long userId, Pageable pageable);
 
+    @EntityGraph(attributePaths = { "place", "place.province" })
+    List<TravelPlaceViewHistoryEntity> findByUserIdOrderByViewedAtDescIdDesc(Long userId);
+
     @EntityGraph(attributePaths = { "place" })
     List<TravelPlaceViewHistoryEntity> findTop20ByUserIdOrderByViewedAtDescIdDesc(Long userId);
+
+    @EntityGraph(attributePaths = { "place" })
+    Optional<TravelPlaceViewHistoryEntity> findFirstByUserIdOrderByViewedAtDescIdDesc(Long userId);
 }
