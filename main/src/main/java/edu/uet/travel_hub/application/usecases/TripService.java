@@ -195,6 +195,7 @@ public class TripService {
         TripEntity trip = TripEntity.builder()
                 .name(request.name())
                 .location(request.destination())
+            .coverImageUrl(request.coverImageUrl())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .budgetMin(request.budgetMin() == null ? null : BigDecimal.valueOf(request.budgetMin()))
