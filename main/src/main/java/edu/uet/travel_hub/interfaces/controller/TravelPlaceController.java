@@ -48,7 +48,6 @@ public class TravelPlaceController {
             @RequestParam(required = false) Long provinceId) {
         return ResponseEntity.ok(
                 this.travelPlaceService.getRecommendedPlaces(
-                        this.currentUserProvider.getCurrentUserId(),
                         page,
                         pageSize,
                         provinceId));
