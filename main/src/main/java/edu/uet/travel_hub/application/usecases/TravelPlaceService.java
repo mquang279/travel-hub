@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,7 +36,6 @@ import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewSummaryResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceViewHistoryResponse;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
-import edu.uet.travel_hub.application.port.out.AiEmbeddingGateway;
 import edu.uet.travel_hub.infrastructure.persistence.entity.ProvinceEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TravelPlaceEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TravelPlaceImageEntity;
@@ -51,8 +49,6 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceR
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceReviewStatsProjection;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceViewHistoryJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
-import edu.uet.travel_hub.domain.model.TravelPlaceRecommendationModel;
-import edu.uet.travel_hub.domain.model.TravelPlaceRecommendationQuery;
 
 @Service
 public class TravelPlaceService {
@@ -66,7 +62,6 @@ public class TravelPlaceService {
     private final TravelPlaceReviewJpaRepository travelPlaceReviewJpaRepository;
     private final TravelPlaceViewHistoryJpaRepository travelPlaceViewHistoryJpaRepository;
     private final UserJpaRepository userJpaRepository;
-    private final AiEmbeddingGateway aiEmbeddingGateway;
     private final TransactionTemplate sideEffectTransactionTemplate;
 
     public TravelPlaceService(
@@ -76,7 +71,6 @@ public class TravelPlaceService {
             TravelPlaceReviewJpaRepository travelPlaceReviewJpaRepository,
             TravelPlaceViewHistoryJpaRepository travelPlaceViewHistoryJpaRepository,
             UserJpaRepository userJpaRepository,
-            AiEmbeddingGateway aiEmbeddingGateway,
             PlatformTransactionManager transactionManager) {
         this.provinceJpaRepository = provinceJpaRepository;
         this.travelPlaceJpaRepository = travelPlaceJpaRepository;
@@ -84,7 +78,6 @@ public class TravelPlaceService {
         this.travelPlaceReviewJpaRepository = travelPlaceReviewJpaRepository;
         this.travelPlaceViewHistoryJpaRepository = travelPlaceViewHistoryJpaRepository;
         this.userJpaRepository = userJpaRepository;
-        this.aiEmbeddingGateway = aiEmbeddingGateway;
         this.sideEffectTransactionTemplate = new TransactionTemplate(transactionManager);
         this.sideEffectTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -229,60 +222,27 @@ public class TravelPlaceService {
 
     @Transactional(readOnly = true)
     public PaginationResponse<TravelPlaceListItemResponse> getRecommendedPlaces(
-            Long currentUserId,
             int page,
             int pageSize,
             Long provinceId) {
         int safePage = Math.max(page, 0);
         int safePageSize = Math.max(pageSize, 1);
-        int offset = safePage * safePageSize;
 
-        List<Long> viewedPlaceIds = this.travelPlaceViewHistoryJpaRepository
-                .findTop20ByUserIdOrderByViewedAtDescIdDesc(currentUserId)
-                .stream()
-                .map(history -> history.getPlace().getId())
-                .distinct()
-                .toList();
-
-        List<TravelPlaceRecommendationModel> recommendations = this.aiEmbeddingGateway.recommendTravelPlaces(
-                TravelPlaceRecommendationQuery.builder()
-                        .userId(currentUserId)
-                        .viewedPlaceIds(viewedPlaceIds)
-                        .provinceId(provinceId)
-                        .limit(safePageSize)
-                        .offset(offset)
-                        .build());
-
-        if (recommendations.isEmpty()) {
-            return new PaginationResponse<>(safePage, safePageSize, 0, 0L, List.of());
-        }
-
-        List<Long> placeIds = recommendations.stream()
-                .map(TravelPlaceRecommendationModel::travelPlaceId)
-                .toList();
-        Map<Long, Integer> orderByPlaceId = new LinkedHashMap<>();
-        for (int index = 0; index < placeIds.size(); index++) {
-            orderByPlaceId.put(placeIds.get(index), index);
-        }
-
-        Map<Long, TravelPlaceEntity> placeById = this.travelPlaceJpaRepository.findByIdIn(placeIds)
-                .stream()
-                .collect(Collectors.toMap(TravelPlaceEntity::getId, place -> place));
+        Pageable pageable = PageRequest.of(safePage, safePageSize);
+        Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.findRandom(provinceId, pageable);
+        List<Long> placeIds = places.stream().map(TravelPlaceEntity::getId).toList();
         Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
         Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
 
-        List<TravelPlaceListItemResponse> data = placeIds.stream()
-                .map(placeById::get)
-                .filter(Objects::nonNull)
-                .sorted((left, right) -> Integer.compare(orderByPlaceId.get(left.getId()), orderByPlaceId.get(right.getId())))
+        List<TravelPlaceListItemResponse> data = places.getContent().stream()
                 .map(place -> toListItemResponse(
                         place,
                         mainImages.get(place.getId()),
                         reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
                 .toList();
 
-        int totalPages = data.isEmpty() ? 0 : safePage + 1;
-        return new PaginationResponse<>(safePage, safePageSize, totalPages, (long) data.size(), data);
+        return new PaginationResponse<>(places.getNumber(), places.getSize(), places.getTotalPages(),
+                places.getTotalElements(), data);
     }
 
     private TravelPlaceDetailResponse buildPlaceDetailResponse(TravelPlaceEntity place, Optional<Long> currentUserId) {

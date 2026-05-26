@@ -29,6 +29,19 @@ public interface TravelPlaceJpaRepository extends JpaRepository<TravelPlaceEntit
     Page<TravelPlaceEntity> search(@Param("provinceId") Long provinceId, @Param("keyword") String keyword,
             Pageable pageable);
 
+    @EntityGraph(attributePaths = { "province" })
+    @Query(value = """
+            select p
+            from TravelPlaceEntity p
+            where (:provinceId is null or p.province.id = :provinceId)
+            order by function('random')
+            """, countQuery = """
+            select count(p)
+            from TravelPlaceEntity p
+            where (:provinceId is null or p.province.id = :provinceId)
+            """)
+    Page<TravelPlaceEntity> findRandom(@Param("provinceId") Long provinceId, Pageable pageable);
+
     @Modifying
     @Query("update TravelPlaceEntity p set p.views = coalesce(p.views, 0) + 1 where p.id = :id")
     void incrementViews(@Param("id") Long id);
