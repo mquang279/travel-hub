@@ -21,6 +21,8 @@ public record TripDashboardResponse(
             String name,
             String location,
             String coverImageUrl,
+            String startDate,
+            String endDate,
             int daysLeft,
             int memberCount) {
     }

@@ -122,19 +122,22 @@ public class TripService {
             .toList();
 
         TripDashboardResponse.ActiveTripResponse activeTrip = memberTrips.stream()
-            .filter(trip -> trip.getStatus() == TripStatus.ONGOING)
+            .filter(trip -> resolveDashboardStatus(trip) == TripStatus.ONGOING)
             .findFirst()
             .map(this::toActiveTrip)
             .orElse(null);
 
         List<TripDashboardResponse.UpcomingTripResponse> upcomingTrips = memberTrips.stream()
-            .filter(trip -> trip.getStatus() == TripStatus.UPCOMING || trip.getStatus() == TripStatus.PLANNING)
+            .filter(trip -> {
+                TripStatus status = resolveDashboardStatus(trip);
+                return status == TripStatus.UPCOMING || status == TripStatus.PLANNING;
+            })
             .sorted((left, right) -> compareNullableDates(left.getStartDate(), right.getStartDate()))
             .map(trip -> toUpcomingTrip(trip, today))
             .toList();
 
         List<TripDashboardResponse.PastTripResponse> pastTrips = memberTrips.stream()
-            .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
+            .filter(trip -> resolveDashboardStatus(trip) == TripStatus.COMPLETED)
             .sorted((left, right) -> compareNullableDatesDesc(left.getEndDate(), right.getEndDate()))
             .map(this::toPastTrip)
             .toList();
@@ -320,6 +323,8 @@ public class TripService {
                 trip.getName(),
                 trip.getLocation(),
                 trip.getCoverImageUrl(),
+            formatDate(trip.getStartDate()),
+            formatDate(trip.getEndDate()),
                 daysLeft,
                 memberCount);
     }
@@ -432,5 +437,9 @@ public class TripService {
             throw new IllegalArgumentException(fieldName + " is required");
         }
         return normalized;
+    }
+
+    private TripStatus resolveDashboardStatus(TripEntity trip) {
+        return TripStatus.fromDates(trip.getStartDate(), trip.getEndDate());
     }
 }
