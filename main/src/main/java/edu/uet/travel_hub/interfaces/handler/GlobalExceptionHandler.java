@@ -13,7 +13,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
