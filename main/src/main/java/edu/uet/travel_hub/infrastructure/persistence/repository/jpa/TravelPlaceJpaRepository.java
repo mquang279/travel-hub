@@ -42,6 +42,30 @@ public interface TravelPlaceJpaRepository extends JpaRepository<TravelPlaceEntit
             """)
     Page<TravelPlaceEntity> findRandom(@Param("provinceId") Long provinceId, Pageable pageable);
 
+    @Query(value = """
+            select p.*
+            from travel_places p
+            left join (
+                select place_id, count(*) as review_count, avg(rating) as average_rating
+                from travel_place_reviews
+                group by place_id
+            ) review_stats on review_stats.place_id = p.id
+            where (:provinceId is null or p.province_id = :provinceId)
+            order by (
+                    coalesce(p.views, 0)
+                    + coalesce(review_stats.review_count, 0) * 3
+                    + coalesce(review_stats.average_rating, 0) * 10
+                ) desc,
+                coalesce(p.views, 0) desc,
+                coalesce(review_stats.review_count, 0) desc,
+                p.id asc
+            """, countQuery = """
+            select count(*)
+            from travel_places p
+            where (:provinceId is null or p.province_id = :provinceId)
+            """, nativeQuery = true)
+    Page<TravelPlaceEntity> findPopular(@Param("provinceId") Long provinceId, Pageable pageable);
+
     @Modifying
     @Query("update TravelPlaceEntity p set p.views = coalesce(p.views, 0) + 1 where p.id = :id")
     void incrementViews(@Param("id") Long id);

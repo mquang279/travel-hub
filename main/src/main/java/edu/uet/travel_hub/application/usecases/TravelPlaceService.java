@@ -245,6 +245,31 @@ public class TravelPlaceService {
                 places.getTotalElements(), data);
     }
 
+    @Transactional(readOnly = true)
+    public PaginationResponse<TravelPlaceListItemResponse> getPopularPlaces(
+            int page,
+            int pageSize,
+            Long provinceId) {
+        int safePage = Math.max(page, 0);
+        int safePageSize = Math.max(pageSize, 1);
+
+        Pageable pageable = PageRequest.of(safePage, safePageSize);
+        Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.findPopular(provinceId, pageable);
+        List<Long> placeIds = places.stream().map(TravelPlaceEntity::getId).toList();
+        Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
+        Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
+
+        List<TravelPlaceListItemResponse> data = places.getContent().stream()
+                .map(place -> toListItemResponse(
+                        place,
+                        mainImages.get(place.getId()),
+                        reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
+                .toList();
+
+        return new PaginationResponse<>(places.getNumber(), places.getSize(), places.getTotalPages(),
+                places.getTotalElements(), data);
+    }
+
     private TravelPlaceDetailResponse buildPlaceDetailResponse(TravelPlaceEntity place, Optional<Long> currentUserId) {
         return buildPlaceDetailResponse(place, currentUserId, place.getViews());
     }
