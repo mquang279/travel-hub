@@ -59,6 +59,9 @@ public class TripEntity {
     @Column(length = 1000)
     private String coverImageUrl;
 
+    @Column(name = "place_id")
+    private Long placeId;
+
     @Column(length = 2000)
     private String description;
 
@@ -91,6 +94,18 @@ public class TripEntity {
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<TripDayEntity> days = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<TripExpenseEntity> expenses = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<TripPollEntity> polls = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<TripActivityLogEntity> activityLogs = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

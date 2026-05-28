@@ -7,6 +7,8 @@ public record CreateTripRequest(
         String destination,
         LocalDate startDate,
         LocalDate endDate,
+        String coverImageUrl,
+        Long placeId,
         Double budgetMin,
         Double budgetMax
 ) {

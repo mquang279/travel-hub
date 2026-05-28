@@ -175,6 +175,7 @@ public class TripService {
             trip.getName(),
             trip.getLocation(),
             trip.getCoverImageUrl(),
+            trip.getPlaceId(),
             trip.getDescription(),
             trip.getStartDate(),
             trip.getEndDate(),
@@ -217,6 +218,8 @@ public class TripService {
                 .location(request.destination())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
+            .coverImageUrl(request.coverImageUrl())
+            .placeId(request.placeId())
                 .budgetMin(request.budgetMin() == null ? null : BigDecimal.valueOf(request.budgetMin()))
                 .budgetMax(request.budgetMax() == null ? null : BigDecimal.valueOf(request.budgetMax()))
                 .leader(leader)
@@ -266,21 +269,23 @@ public class TripService {
             throw new IllegalArgumentException("Mã mời đã hết hạn");
         }
 
-        TripMemberEntity member = this.tripMemberJpaRepository.findByTripIdAndUserId(trip.getId(), currentUserId)
-                .orElseGet(() -> TripMemberEntity.builder()
-                        .trip(trip)
-                        .user(currentUser)
-                        .role(TripMemberRole.MEMBER)
-                        .status(TripMemberStatus.PENDING)
-                        .build());
-
-        if (member.getStatus() == TripMemberStatus.ACTIVE) {
-            throw new DataIntegrityViolationException("Bạn đã là thành viên của chuyến đi này");
+        Optional<TripMemberEntity> existingMemberOpt = this.tripMemberJpaRepository.findByTripIdAndUserId(trip.getId(), currentUserId);
+        if (existingMemberOpt.isPresent()) {
+            TripMemberStatus status = existingMemberOpt.get().getStatus();
+            if (status == TripMemberStatus.ACTIVE) {
+                throw new DataIntegrityViolationException("Bạn đã là thành viên của chuyến đi này");
+            }
+            if (status == TripMemberStatus.PENDING) {
+                throw new DataIntegrityViolationException("Yêu cầu tham gia đã được gửi");
+            }
         }
 
-        if (member.getStatus() == TripMemberStatus.PENDING) {
-            throw new DataIntegrityViolationException("Yêu cầu tham gia đã được gửi");
-        }
+        TripMemberEntity member = existingMemberOpt.orElseGet(() -> TripMemberEntity.builder()
+                .trip(trip)
+                .user(currentUser)
+                .role(TripMemberRole.MEMBER)
+                .status(TripMemberStatus.PENDING)
+                .build());
 
         member.setStatus(TripMemberStatus.PENDING);
         member.setRole(TripMemberRole.MEMBER);

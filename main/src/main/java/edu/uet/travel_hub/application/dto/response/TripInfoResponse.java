@@ -10,6 +10,7 @@ public record TripInfoResponse(
         String name,
         String location,
         String coverImageUrl,
+        Long placeId,
         String description,
         LocalDate startDate,
         LocalDate endDate,
