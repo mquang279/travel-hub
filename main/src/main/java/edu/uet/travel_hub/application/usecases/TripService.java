@@ -156,7 +156,6 @@ public class TripService {
             TripMemberStatus.ACTIVE);
 
         List<TripMemberResponse> members = activeMembers.stream()
-            .limit(5)
             .map(this::toMemberResponseWithRole)
             .toList();
 
@@ -256,6 +255,32 @@ public class TripService {
     public void deleteTrip(Long tripId, Long currentUserId) {
         TripEntity trip = requireLeaderTrip(tripId, currentUserId);
         this.tripJpaRepository.delete(trip);
+    }
+
+    @Transactional(readOnly = true)
+    public TripInfoResponse getTripByInviteCode(String code) {
+        String inviteCode = normalizeRequired(code, "inviteCode").toUpperCase(Locale.ROOT);
+        TripEntity trip = this.tripJpaRepository.findByInviteCode(inviteCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Mã mời không hợp lệ hoặc không tìm thấy chuyến đi"));
+        
+        if (trip.getInviteCodeExpiredAt() != null && trip.getInviteCodeExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Mã mời đã hết hạn");
+        }
+
+        return new TripInfoResponse(
+            trip.getId(),
+            trip.getName(),
+            trip.getLocation(),
+            trip.getCoverImageUrl(),
+            trip.getPlaceId(),
+            trip.getDescription(),
+            trip.getStartDate(),
+            trip.getEndDate(),
+            trip.getBudgetMin(),
+            trip.getBudgetMax(),
+            trip.getStatus(),
+            trip.getInviteCode(),
+            DEFAULT_MAX_MEMBERS);
     }
 
     @Transactional

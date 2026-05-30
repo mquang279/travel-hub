@@ -89,6 +89,7 @@ public class TripMemberService {
             throw new ForbiddenTripActionException("Không thể tự xóa, hãy dùng POST /leave");
         }
 
+        trip.getMembers().remove(member);
         this.tripMemberJpaRepository.delete(member);
         this.tripActivityLogService.log(trip, trip.getLeader(), "REMOVE_MEMBER", "USER", memberUserId, "member removed");
     }
@@ -102,6 +103,7 @@ public class TripMemberService {
             throw new ForbiddenTripActionException("Leader must transfer role before leaving");
         }
 
+        trip.getMembers().remove(currentMember);
         this.tripMemberJpaRepository.delete(currentMember);
         this.tripActivityLogService.log(trip, currentMember.getUser(), "LEAVE_TRIP", "USER", currentUserId, "member left trip");
     }

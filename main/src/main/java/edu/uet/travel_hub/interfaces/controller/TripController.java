@@ -18,6 +18,7 @@ import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailResponse;
+import edu.uet.travel_hub.application.dto.response.TripInfoResponse;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.usecases.TripService;
 import jakarta.validation.Valid;
@@ -60,6 +61,11 @@ public class TripController {
     public ResponseEntity<Void> deleteTrip(@PathVariable Long tripId) {
         this.tripService.deleteTrip(tripId, this.currentUserProvider.getCurrentUserId());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/trips/invite/{code}")
+    public ResponseEntity<TripInfoResponse> getTripByInviteCode(@PathVariable String code) {
+        return ResponseEntity.ok(this.tripService.getTripByInviteCode(code));
     }
 
     @PostMapping("/trips/join")
