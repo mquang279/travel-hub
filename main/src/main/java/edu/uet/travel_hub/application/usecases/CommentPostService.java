@@ -29,6 +29,8 @@ public class CommentPostService implements CommentPostUseCase {
         String commenterUsername = this.userRepository.findById(userId)
                 .map(user -> user.getUsername())
                 .orElse("Someone");
+
+        postModel.setCommentCount(postModel.getCommentCount() + 1);
         CommentModel commentModel = CommentModel
                 .builder()
                 .content(request.content())
@@ -39,6 +41,8 @@ public class CommentPostService implements CommentPostUseCase {
             String body = commenterUsername + " commented on your post";
             this.saveNotificationService.save(postModel.getUserId(), title, body, NotificationType.COMMENT, postId);
         }
-        return this.commentRepository.save(commentModel);
+        CommentModel savedComment = this.commentRepository.save(commentModel);
+        this.postRepository.increaseCommentCount(postId);
+        return savedComment;
     }
 }
