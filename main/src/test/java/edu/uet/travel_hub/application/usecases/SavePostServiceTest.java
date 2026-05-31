@@ -44,16 +44,16 @@ class SavePostServiceTest {
     }
 
     @Test
-    void save_togglesOffExistingSavedPost() {
+    void save_keepsExistingSavedPost() {
         when(currentUserProvider.getCurrentUserId()).thenReturn(1L);
         when(postRepository.findById(10L)).thenReturn(Optional.of(PostModel.builder().id(10L).build()));
         when(savedPostRepository.exists(1L, 10L)).thenReturn(true);
 
         SavePostResponse response = savePostService.save(10L);
 
-        assertThat(response.saved()).isFalse();
+        assertThat(response.saved()).isTrue();
         verify(savedPostRepository, never()).save(1L, 10L);
-        verify(savedPostRepository).delete(1L, 10L);
+        verify(savedPostRepository, never()).delete(1L, 10L);
     }
 
     @Test

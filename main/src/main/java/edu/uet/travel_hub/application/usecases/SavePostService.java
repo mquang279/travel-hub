@@ -28,8 +28,7 @@ public class SavePostService implements SavePostUseCase {
         ensurePostExists(postId);
 
         if (this.savedPostRepository.exists(userId, postId)) {
-            this.savedPostRepository.delete(userId, postId);
-            return new SavePostResponse(postId, false);
+            return new SavePostResponse(postId, true);
         }
 
         this.savedPostRepository.save(userId, postId);
