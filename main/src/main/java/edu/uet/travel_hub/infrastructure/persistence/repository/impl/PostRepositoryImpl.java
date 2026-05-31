@@ -88,6 +88,18 @@ public class PostRepositoryImpl implements PostRepository {
     }
 
     @Override
+    @Transactional
+    public void increaseCommentCount(Long id) {
+        this.postJpaRepository.incrementComment(id);
+    }
+
+    @Override
+    @Transactional
+    public void decreaseCommentCount(Long id) {
+        this.postJpaRepository.decrementComment(id);
+    }
+
+    @Override
     public int getLikeCount(Long id) {
         PostEntity postEntity = this.postJpaRepository.findById(id).get();
         return postEntity.getLikeCount();
