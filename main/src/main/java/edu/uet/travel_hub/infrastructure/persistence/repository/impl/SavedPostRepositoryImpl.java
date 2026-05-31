@@ -1,5 +1,8 @@
 package edu.uet.travel_hub.infrastructure.persistence.repository.impl;
 
+import java.util.Collection;
+import java.util.Set;
+
 import org.springframework.stereotype.Repository;
 
 import edu.uet.travel_hub.application.port.out.SavedPostRepository;
@@ -35,7 +38,21 @@ public class SavedPostRepositoryImpl implements SavedPostRepository {
     }
 
     @Override
+    public void delete(Long userId, Long postId) {
+        this.savedPostJpaRepository.findByUserIdAndPostId(userId, postId)
+                .ifPresent(this.savedPostJpaRepository::delete);
+    }
+
+    @Override
     public boolean exists(Long userId, Long postId) {
         return this.savedPostJpaRepository.existsByUserIdAndPostId(userId, postId);
+    }
+
+    @Override
+    public Set<Long> findSavedPostIds(Long userId, Collection<Long> postIds) {
+        if (userId == null || postIds == null || postIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(this.savedPostJpaRepository.findSavedPostIds(userId, postIds));
     }
 }

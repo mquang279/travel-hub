@@ -11,6 +11,7 @@ import edu.uet.travel_hub.application.port.in.GetLikedPostOfUserUseCase;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.LikeRepository;
 import edu.uet.travel_hub.application.port.out.PostRepository;
+import edu.uet.travel_hub.application.port.out.SavedPostRepository;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
 
@@ -19,13 +20,16 @@ public class GetLikedPostOfUserService implements GetLikedPostOfUserUseCase {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
+    private final SavedPostRepository savedPostRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public GetLikedPostOfUserService(PostRepository postRepository, UserRepository userRepository,
-            LikeRepository likeRepository, CurrentUserProvider currentUserProvider) {
+            LikeRepository likeRepository, SavedPostRepository savedPostRepository,
+            CurrentUserProvider currentUserProvider) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.likeRepository = likeRepository;
+        this.savedPostRepository = savedPostRepository;
         this.currentUserProvider = currentUserProvider;
     }
 
@@ -37,9 +41,11 @@ public class GetLikedPostOfUserService implements GetLikedPostOfUserUseCase {
         PaginationResponse<PostModel> posts = this.postRepository.getLikedPostsOfUser(userId, pageNumber, pageSize);
         Long currentUserId = this.currentUserProvider.getOptionalCurrentUserId().orElse(null);
         Set<Long> likedPostIds = findLikedPostIds(currentUserId, posts.data());
+        Set<Long> savedPostIds = findSavedPostIds(currentUserId, posts.data());
 
         for (PostModel post : posts.data()) {
             post.setLiked(likedPostIds.contains(post.getId()));
+            post.setSavedByCurrentUser(savedPostIds.contains(post.getId()));
         }
 
         return posts;
@@ -54,5 +60,16 @@ public class GetLikedPostOfUserService implements GetLikedPostOfUserUseCase {
                 .map(PostModel::getId)
                 .toList();
         return this.likeRepository.findLikedPostIds(currentUserId, postIds);
+    }
+
+    private Set<Long> findSavedPostIds(Long currentUserId, List<PostModel> posts) {
+        if (currentUserId == null || posts.isEmpty()) {
+            return Set.of();
+        }
+
+        List<Long> postIds = posts.stream()
+                .map(PostModel::getId)
+                .toList();
+        return this.savedPostRepository.findSavedPostIds(currentUserId, postIds);
     }
 }

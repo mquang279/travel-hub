@@ -29,6 +29,8 @@ public class PostModel {
 
     private boolean isLiked;
 
+    private boolean savedByCurrentUser;
+
     private Long userId;
 
     private String ownerUsername;

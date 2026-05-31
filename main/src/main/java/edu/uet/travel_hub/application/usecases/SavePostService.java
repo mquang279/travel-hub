@@ -25,13 +25,29 @@ public class SavePostService implements SavePostUseCase {
     @Override
     public SavePostResponse save(Long postId) {
         Long userId = this.currentUserProvider.getCurrentUserId();
-        this.postRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
+        ensurePostExists(postId);
 
-        if (!this.savedPostRepository.exists(userId, postId)) {
-            this.savedPostRepository.save(userId, postId);
+        if (this.savedPostRepository.exists(userId, postId)) {
+            this.savedPostRepository.delete(userId, postId);
+            return new SavePostResponse(postId, false);
         }
 
+        this.savedPostRepository.save(userId, postId);
         return new SavePostResponse(postId, true);
+    }
+
+    @Override
+    public SavePostResponse unsave(Long postId) {
+        Long userId = this.currentUserProvider.getCurrentUserId();
+        ensurePostExists(postId);
+
+        this.savedPostRepository.delete(userId, postId);
+
+        return new SavePostResponse(postId, false);
+    }
+
+    private void ensurePostExists(Long postId) {
+        this.postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found"));
     }
 }

@@ -14,6 +14,7 @@ public record PostResponse(
                 int likeCount,
                 int commentCount,
                 boolean isLiked,
+                boolean savedByCurrentUser,
                 Long travelPlaceId,
                 String location,
                 Instant createdAt,
