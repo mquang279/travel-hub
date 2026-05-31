@@ -35,9 +35,11 @@ public class LikePostService implements LikePostUseCase {
             this.likeRepository.save(userId, postId);
             this.postRepository.increaseLikeCount(postId);
 
-            String title = "New like on your post";
-            String body = likedByUser.getUsername() + " liked your post";
-            this.saveNotificationService.save(postModel.getUserId(), title, body, NotificationType.LIKE, postId);
+            if (!userId.equals(postModel.getUserId())) {
+                String title = "New like on your post";
+                String body = likedByUser.getUsername() + " liked your post";
+                this.saveNotificationService.save(postModel.getUserId(), title, body, NotificationType.LIKE, postId);
+            }
         }
 
         int likeCount = this.postRepository.getLikeCount(postId);
