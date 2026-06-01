@@ -10,39 +10,44 @@ import edu.uet.travel_hub.application.port.in.GetAllPostsUseCase;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.LikeRepository;
 import edu.uet.travel_hub.application.port.out.PostRepository;
+import edu.uet.travel_hub.application.port.out.SavedPostRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
 
 @Service
 public class GetAllPostsService implements GetAllPostsUseCase {
     private final PostRepository postRepository;
     private final LikeRepository likeRepository;
+    private final SavedPostRepository savedPostRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public GetAllPostsService(PostRepository postRepository, LikeRepository likeRepository,
-            CurrentUserProvider currentUserProvider) {
+            SavedPostRepository savedPostRepository, CurrentUserProvider currentUserProvider) {
         this.postRepository = postRepository;
         this.likeRepository = likeRepository;
+        this.savedPostRepository = savedPostRepository;
         this.currentUserProvider = currentUserProvider;
     }
 
     @Override
     public PaginationResponse<PostModel> getAll(int pageNumber, int pageSize) {
         PaginationResponse<PostModel> posts = this.postRepository.getAll(pageNumber, pageSize);
-        return withLikedState(posts);
+        return withCurrentUserState(posts);
     }
 
     @Override
     public PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize) {
         PaginationResponse<PostModel> posts = this.postRepository.searchByDescription(description, pageNumber, pageSize);
-        return withLikedState(posts);
+        return withCurrentUserState(posts);
     }
 
-    private PaginationResponse<PostModel> withLikedState(PaginationResponse<PostModel> posts) {
+    private PaginationResponse<PostModel> withCurrentUserState(PaginationResponse<PostModel> posts) {
         Long currentUserId = getCurrentUserIdOrNull();
         Set<Long> likedPostIds = findLikedPostIds(currentUserId, posts.data());
+        Set<Long> savedPostIds = findSavedPostIds(currentUserId, posts.data());
 
         for (PostModel post : posts.data()) {
             post.setLiked(likedPostIds.contains(post.getId()));
+            post.setSavedByCurrentUser(savedPostIds.contains(post.getId()));
         }
 
         return posts;
@@ -57,6 +62,17 @@ public class GetAllPostsService implements GetAllPostsUseCase {
                 .map(PostModel::getId)
                 .toList();
         return this.likeRepository.findLikedPostIds(currentUserId, postIds);
+    }
+
+    private Set<Long> findSavedPostIds(Long currentUserId, List<PostModel> posts) {
+        if (currentUserId == null || posts.isEmpty()) {
+            return Set.of();
+        }
+
+        List<Long> postIds = posts.stream()
+                .map(PostModel::getId)
+                .toList();
+        return this.savedPostRepository.findSavedPostIds(currentUserId, postIds);
     }
 
     private Long getCurrentUserIdOrNull() {

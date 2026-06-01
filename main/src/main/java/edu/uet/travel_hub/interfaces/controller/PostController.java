@@ -136,6 +136,12 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/{postId}/save")
+    public ResponseEntity<SavePostResponse> unsave(@PathVariable Long postId) {
+        SavePostResponse response = this.savePostUseCase.unsave(postId);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/{postId}/comments")
     public ResponseEntity<CommentModel> comment(@PathVariable Long postId, @RequestBody CommentRequest request) {
         CommentModel commentModel = this.commentPostUseCase.comment(postId, request);

@@ -62,6 +62,6 @@ public interface PostJpaRepository extends JpaRepository<PostEntity, Long> {
     void incrementComment(@Param("postId") Long postId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("UPDATE PostEntity p SET p.commentCount = p.commentCount - 1 WHERE p.id = :postId")
+    @Query("UPDATE PostEntity p SET p.commentCount = CASE WHEN p.commentCount > 0 THEN p.commentCount - 1 ELSE 0 END WHERE p.id = :postId")
     void decrementComment(@Param("postId") Long postId);
 }
