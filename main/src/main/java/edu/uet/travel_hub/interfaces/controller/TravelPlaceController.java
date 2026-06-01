@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.interfaces.controller;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -39,6 +41,11 @@ public class TravelPlaceController {
             @RequestParam(required = false) Long provinceId,
             @RequestParam(required = false) String keyword) {
         return ResponseEntity.ok(this.travelPlaceService.getPlaces(page, pageSize, provinceId, keyword));
+    }
+
+    @GetMapping("/featured")
+    public ResponseEntity<List<TravelPlaceListItemResponse>> getFeaturedPlaces() {
+        return ResponseEntity.ok(this.travelPlaceService.getFeaturedPlaces());
     }
 
     @GetMapping("/recommendations")

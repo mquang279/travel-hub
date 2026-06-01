@@ -50,7 +50,8 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults()) // Enable CORS
                 .authorizeHttpRequests(
                         (authz) -> authz
-                                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                                .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh")
+                                .permitAll()
                                 .requestMatchers("/api/auth/logout").authenticated()
                                 .requestMatchers("/api/users/me/dashboard").authenticated()
                                 .requestMatchers("/api/trips/**").authenticated()
@@ -58,12 +59,13 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.POST, "/api/posts").authenticated()
                                 .requestMatchers(HttpMethod.PUT, "/api/posts/*").authenticated()
                                 .requestMatchers("/api/users/me", "/api/users/me/**").authenticated()
-                                .requestMatchers(HttpMethod.GET, "/api/users/top-travelers").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/users/top-travelers").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/users/*/followers").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/users/*/following").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/users/*/follow").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/places/recommendations").authenticated()
+                                .requestMatchers(HttpMethod.GET, "/api/places/featured").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/places", "/api/places/*",
                                         "/api/places/*/reviews").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/admin/places")
