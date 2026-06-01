@@ -4,10 +4,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import edu.uet.travel_hub.application.dto.request.LoginRequest;
+import edu.uet.travel_hub.application.dto.request.RefreshTokenRequest;
 import edu.uet.travel_hub.application.dto.request.RegisterRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;
 import edu.uet.travel_hub.application.usecases.LoginService;
 import edu.uet.travel_hub.application.usecases.LogoutService;
+import edu.uet.travel_hub.application.usecases.RefreshTokenService;
 import edu.uet.travel_hub.application.usecases.RegisterService;
 
 import org.springframework.http.ResponseEntity;
@@ -22,11 +24,14 @@ public class AuthController {
     private final RegisterService registerService;
     private final LoginService loginService;
     private final LogoutService logoutService;
+    private final RefreshTokenService refreshTokenService;
 
-    public AuthController(RegisterService registerService, LoginService loginService, LogoutService logoutService) {
+    public AuthController(RegisterService registerService, LoginService loginService, LogoutService logoutService,
+            RefreshTokenService refreshTokenService) {
         this.registerService = registerService;
         this.loginService = loginService;
         this.logoutService = logoutService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @PostMapping("/register")
@@ -41,6 +46,11 @@ public class AuthController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         System.out.println(authentication);
         return ResponseEntity.ok().body(response);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(this.refreshTokenService.refresh(request));
     }
 
     @PostMapping("/logout")

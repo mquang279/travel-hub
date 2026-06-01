@@ -42,6 +42,36 @@ public interface TravelPlaceJpaRepository extends JpaRepository<TravelPlaceEntit
             """)
     Page<TravelPlaceEntity> findRandom(@Param("provinceId") Long provinceId, Pageable pageable);
 
+    @Query(value = """
+            SELECT place.id
+            FROM travel_places place
+            LEFT JOIN (
+                SELECT travel_place_id, COUNT(*) AS post_count
+                FROM posts
+                WHERE travel_place_id IS NOT NULL
+                GROUP BY travel_place_id
+            ) post_stats ON post_stats.travel_place_id = place.id
+            LEFT JOIN (
+                SELECT place_id, COUNT(*) AS trip_count
+                FROM trips
+                WHERE place_id IS NOT NULL
+                GROUP BY place_id
+            ) trip_stats ON trip_stats.place_id = place.id
+            LEFT JOIN (
+                SELECT place_id,
+                       AVG(rating) AS average_rating,
+                       COUNT(*) AS review_count
+                FROM travel_place_reviews
+                GROUP BY place_id
+            ) review_stats ON review_stats.place_id = place.id
+            WHERE COALESCE(post_stats.post_count, 0) + COALESCE(trip_stats.trip_count, 0) > 0
+            ORDER BY COALESCE(review_stats.average_rating, 0) DESC,
+                     COALESCE(post_stats.post_count, 0) + COALESCE(trip_stats.trip_count, 0) DESC,
+                     COALESCE(review_stats.review_count, 0) DESC,
+                     place.id ASC
+            """, nativeQuery = true)
+    List<Long> findFeaturedPlaceIds(Pageable pageable);
+
     @Modifying
     @Query("update TravelPlaceEntity p set p.views = coalesce(p.views, 0) + 1 where p.id = :id")
     void incrementViews(@Param("id") Long id);

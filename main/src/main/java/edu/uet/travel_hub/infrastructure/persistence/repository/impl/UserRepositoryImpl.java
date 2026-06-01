@@ -69,6 +69,12 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<UserModel> findByRefreshToken(String refreshToken) {
+        return this.userJpaRepository.findByRefreshToken(refreshToken).map(mapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PaginationResponse<UserModel> searchByUsername(String username, int pageNumber, int pageSize) {
         PageRequest request = PageRequest.of(pageNumber, pageSize);
         Page<UserEntity> users = this.userJpaRepository.searchByUsername(normalizeSearchTerm(username), request);
