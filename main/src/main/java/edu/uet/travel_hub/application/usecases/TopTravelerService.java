@@ -33,7 +33,7 @@ public class TopTravelerService {
             TopTravelerPeriod period,
             int page,
             int pageSize) {
-        Long currentUserId = currentUserProvider.getCurrentUserId();
+        Long currentUserId = currentUserProvider.getOptionalCurrentUserId().orElse(null);
         Instant now = Instant.now();
         Instant startAt = periodStart(period, now);
         Page<TopTravelerStatsProjection> ranking = userJpaRepository.findTopTravelers(

@@ -52,6 +52,7 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepos
 
 @Service
 public class TravelPlaceService {
+    private static final int FEATURED_PLACE_LIMIT = 5;
     private static final Logger log = LoggerFactory.getLogger(TravelPlaceService.class);
     private static final TravelPlaceReviewAuthorResponse UNKNOWN_REVIEW_AUTHOR =
             new TravelPlaceReviewAuthorResponse(-1L, "Người dùng Travel Hub", "travelhub_user", null);
@@ -99,6 +100,25 @@ public class TravelPlaceService {
 
         return new PaginationResponse<>(places.getNumber(), places.getSize(), places.getTotalPages(),
                 places.getTotalElements(), data);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TravelPlaceListItemResponse> getFeaturedPlaces() {
+        List<Long> placeIds = this.travelPlaceJpaRepository.findFeaturedPlaceIds(
+                PageRequest.of(0, FEATURED_PLACE_LIMIT));
+        Map<Long, TravelPlaceEntity> placesById = this.travelPlaceJpaRepository.findByIdIn(placeIds).stream()
+                .collect(LinkedHashMap::new, (places, place) -> places.put(place.getId(), place), Map::putAll);
+        Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
+        Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
+
+        return placeIds.stream()
+                .map(placesById::get)
+                .filter(Objects::nonNull)
+                .map(place -> toListItemResponse(
+                        place,
+                        mainImages.get(place.getId()),
+                        reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
+                .toList();
     }
 
     @Transactional(readOnly = true)

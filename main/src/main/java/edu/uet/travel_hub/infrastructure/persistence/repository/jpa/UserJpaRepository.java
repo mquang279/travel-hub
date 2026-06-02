@@ -39,6 +39,8 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
 
     Optional<UserEntity> findByEmail(String email);
 
+    Optional<UserEntity> findByRefreshToken(String refreshToken);
+
     @Query("""
             SELECT u FROM UserEntity u
             WHERE lower(coalesce(u.username, '')) LIKE lower(concat('%', :username, '%'))
