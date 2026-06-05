@@ -35,6 +35,8 @@ public class PostModel {
 
     private String ownerUsername;
 
+    private String ownerAvatarUrl;
+
     private Instant createdAt;
 
     private Instant updatedAt;
