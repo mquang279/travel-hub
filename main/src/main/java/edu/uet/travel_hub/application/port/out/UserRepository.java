@@ -15,6 +15,10 @@ public interface UserRepository {
 
     Optional<UserModel> findByEmail(String email);
 
+    boolean existsByEmail(String email);
+
+    boolean existsByUsername(String username);
+
     Optional<UserModel> findByRefreshToken(String refreshToken);
 
     PaginationResponse<UserModel> searchByUsername(String username, int pageNumber, int pageSize);

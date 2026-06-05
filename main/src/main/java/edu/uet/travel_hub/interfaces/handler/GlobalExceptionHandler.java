@@ -5,6 +5,7 @@ import edu.uet.travel_hub.application.exception.InviteCodeGenerationException;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
 import edu.uet.travel_hub.application.exception.UnauthorizedException;
 import edu.uet.travel_hub.domain.exception.EmailAlreadyExistsException;
+import edu.uet.travel_hub.domain.exception.UsernameAlreadyExistsException;
 import edu.uet.travel_hub.interfaces.dto.response.ApiErrorResponse;
 import edu.uet.travel_hub.interfaces.dto.response.ApiErrorResponse.FieldErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
@@ -73,6 +75,7 @@ public class GlobalExceptionHandler {
             Map.entry("Trip not found", "Không tìm thấy chuyến đi."),
             Map.entry("User is not an active member", "Bạn không phải thành viên đang hoạt động của chuyến đi này."),
             Map.entry("User not found", "Không tìm thấy người dùng."),
+            Map.entry("Username already exists.", "Username đã được sử dụng."),
             Map.entry("You do not have permission to delete this comment.", "Bạn không có quyền xóa bình luận này."));
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -84,19 +87,31 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ApiErrorResponse> handleEmailAlreadyExists(EmailAlreadyExistsException ex,
             HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.CONFLICT, "Dữ liệu đã tồn tại", localizeMessage(ex.getMessage()), request);
+        return buildErrorResponse(HttpStatus.CONFLICT, "Email đã tồn tại", localizeMessage(ex.getMessage()), request);
+    }
+
+    @ExceptionHandler(UsernameAlreadyExistsException.class)
+    public ResponseEntity<ApiErrorResponse> handleUsernameAlreadyExists(UsernameAlreadyExistsException ex,
+            HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Username đã tồn tại", localizeMessage(ex.getMessage()), request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex,
             HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, "Xung đột dữ liệu",
-                localizeMessage(ex.getMessage(), "Dữ liệu đã tồn tại hoặc không hợp lệ."), request);
+                resolveDataIntegrityMessage(ex), request);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiErrorResponse> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Chưa xác thực", localizeMessage(ex.getMessage()), request);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Đăng nhập thất bại",
+                "Email hoặc mật khẩu không đúng.", request);
     }
 
     @ExceptionHandler({ ForbiddenTripActionException.class, AccessDeniedException.class })
@@ -223,6 +238,9 @@ public class GlobalExceptionHandler {
         if (message.startsWith("Email already exists:")) {
             return "Email đã được sử dụng.";
         }
+        if (message.startsWith("Username already exists:")) {
+            return "Username đã được sử dụng.";
+        }
         if (message.startsWith("User not found with id:")) {
             return "Không tìm thấy người dùng.";
         }
@@ -242,6 +260,20 @@ public class GlobalExceptionHandler {
             return "Dữ liệu đã tồn tại.";
         }
         return message;
+    }
+
+    private String resolveDataIntegrityMessage(DataIntegrityViolationException ex) {
+        String message = Objects.toString(ex.getMostSpecificCause().getMessage(), ex.getMessage());
+        String lowerMessage = message.toLowerCase();
+
+        if (lowerMessage.contains("email")) {
+            return "Email đã được sử dụng.";
+        }
+        if (lowerMessage.contains("username")) {
+            return "Username đã được sử dụng.";
+        }
+
+        return localizeMessage(message, "Dữ liệu đã tồn tại hoặc không hợp lệ.");
     }
 
     private String localizeValidationMessage(String message) {

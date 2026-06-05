@@ -69,6 +69,18 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean existsByEmail(String email) {
+        return this.userJpaRepository.existsByEmail(email);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByUsername(String username) {
+        return this.userJpaRepository.existsByUsername(username);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<UserModel> findByRefreshToken(String refreshToken) {
         return this.userJpaRepository.findByRefreshToken(refreshToken).map(mapper::toDomain);
     }
