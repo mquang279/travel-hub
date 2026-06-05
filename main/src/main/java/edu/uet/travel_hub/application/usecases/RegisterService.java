@@ -10,6 +10,8 @@ import edu.uet.travel_hub.application.port.out.PasswordEncoder;
 import edu.uet.travel_hub.application.port.out.TokenProvider;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.enums.Role;
+import edu.uet.travel_hub.domain.exception.EmailAlreadyExistsException;
+import edu.uet.travel_hub.domain.exception.UsernameAlreadyExistsException;
 import edu.uet.travel_hub.domain.model.UserModel;
 
 @Service
@@ -27,8 +29,18 @@ public class RegisterService implements RegisterUseCase {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        String email = request.email() == null ? "" : request.email().trim();
+        String username = request.username() == null ? "" : request.username().trim();
+
+        if (this.userRepository.existsByEmail(email)) {
+            throw new EmailAlreadyExistsException(email);
+        }
+        if (this.userRepository.existsByUsername(username)) {
+            throw new UsernameAlreadyExistsException(username);
+        }
+
         String hashPassword = encoder.encode(request.password());
-        UserModel user = this.userRepository.register(request.email(), request.username(), hashPassword, Role.USER);
+        UserModel user = this.userRepository.register(email, username, hashPassword, Role.USER);
         String accessToken = this.tokenProvider.generateAccessToken(user);
         String refreshToken = this.tokenProvider.generateRefreshToken(user);
         this.userRepository.updateRefreshToken(user.getId(), refreshToken);
