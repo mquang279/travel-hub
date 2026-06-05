@@ -1,8 +1,8 @@
 package edu.uet.travel_hub.infrastructure.security;
 
 import java.io.IOException;
-import java.util.Map;
 
+import edu.uet.travel_hub.interfaces.dto.response.ApiErrorResponse;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -29,11 +29,11 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         this.delegate.commence(request, response, authException);
         response.setContentType("application/json;charset=UTF-8");
 
-        Map<String, Object> errorResponse = Map.of(
-                "status", HttpServletResponse.SC_UNAUTHORIZED,
-                "error", "Unauthorized",
-                "message", authException.getMessage(),
-                "path", request.getRequestURI());
+        ApiErrorResponse errorResponse = ApiErrorResponse.of(
+                HttpServletResponse.SC_UNAUTHORIZED,
+                "Chưa xác thực",
+                "Bạn cần đăng nhập hoặc token không hợp lệ.",
+                request.getRequestURI());
         mapper.writeValue(response.getWriter(), errorResponse);
     }
 }
