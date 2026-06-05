@@ -56,6 +56,7 @@ public class SecurityConfig {
                                 .requestMatchers("/api/users/me/dashboard").authenticated()
                                 .requestMatchers("/api/trips/**").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/posts").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/posts/random").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/posts").authenticated()
                                 .requestMatchers(HttpMethod.PUT, "/api/posts/*").authenticated()
                                 .requestMatchers("/api/users/me", "/api/users/me/**").authenticated()

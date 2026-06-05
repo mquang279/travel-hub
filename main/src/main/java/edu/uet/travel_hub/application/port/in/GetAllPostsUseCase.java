@@ -6,5 +6,7 @@ import edu.uet.travel_hub.domain.model.PostModel;
 public interface GetAllPostsUseCase {
     public PaginationResponse<PostModel> getAll(int pageNumber, int pageSize);
 
+    public PaginationResponse<PostModel> getRandom(int pageNumber, int pageSize);
+
     public PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize);
 }

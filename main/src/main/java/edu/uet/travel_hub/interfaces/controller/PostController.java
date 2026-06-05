@@ -81,6 +81,19 @@ public class PostController {
         return ResponseEntity.ok().body(response);
     }
 
+    @GetMapping("/random")
+    public ResponseEntity<PaginationResponse<PostResponse>> getRandom(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        PaginationResponse<PostModel> posts = this.getAllPostsUseCase.getRandom(page, pageSize);
+        PaginationResponse<PostResponse> response = new PaginationResponse<>(
+                posts.pageNumber(),
+                posts.pageSize(),
+                posts.totalPages(),
+                posts.totalElements(),
+                posts.data().stream().map(this.mapper::toDto).toList());
+        return ResponseEntity.ok().body(response);
+    }
+
     @GetMapping("/search")
     public ResponseEntity<PaginationResponse<PostResponse>> searchByDescription(
             @RequestParam(defaultValue = "") String description,
