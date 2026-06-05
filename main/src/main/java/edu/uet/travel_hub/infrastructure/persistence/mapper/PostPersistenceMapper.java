@@ -73,6 +73,7 @@ public class PostPersistenceMapper {
                 .location(location)
                 .userId(entity.getUser().getId())
                 .ownerUsername(entity.getUser().getUsername())
+                .ownerAvatarUrl(entity.getUser().getAvatarUrl())
                 .build();
     }
 }
