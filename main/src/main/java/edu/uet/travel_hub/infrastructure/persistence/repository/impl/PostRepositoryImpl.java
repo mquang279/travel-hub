@@ -56,6 +56,13 @@ public class PostRepositoryImpl implements PostRepository {
     }
 
     @Override
+    public PaginationResponse<PostModel> getRandom(int pageNumber, int pageSize) {
+        PageRequest request = PageRequest.of(pageNumber, pageSize);
+        Page<PostEntity> posts = this.postJpaRepository.findRandom(request);
+        return toPaginationResponse(posts);
+    }
+
+    @Override
     public PaginationResponse<PostModel> getByUserId(Long userId, int pageNumber, int pageSize) {
         PageRequest request = PageRequest.of(pageNumber, pageSize);
         Page<PostEntity> posts = this.postJpaRepository.findByUserId(userId, request);

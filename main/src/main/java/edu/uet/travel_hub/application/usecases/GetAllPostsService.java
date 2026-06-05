@@ -35,6 +35,12 @@ public class GetAllPostsService implements GetAllPostsUseCase {
     }
 
     @Override
+    public PaginationResponse<PostModel> getRandom(int pageNumber, int pageSize) {
+        PaginationResponse<PostModel> posts = this.postRepository.getRandom(pageNumber, pageSize);
+        return withCurrentUserState(posts);
+    }
+
+    @Override
     public PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize) {
         PaginationResponse<PostModel> posts = this.postRepository.searchByDescription(description, pageNumber, pageSize);
         return withCurrentUserState(posts);

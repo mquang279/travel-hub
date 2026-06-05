@@ -17,6 +17,15 @@ public interface PostJpaRepository extends JpaRepository<PostEntity, Long> {
     @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
     Page<PostEntity> findAll(Pageable pageable);
 
+    @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
+    @Query(value = """
+            SELECT p FROM PostEntity p
+            ORDER BY function('random')
+            """, countQuery = """
+            SELECT count(p) FROM PostEntity p
+            """)
+    Page<PostEntity> findRandom(Pageable pageable);
+
     @Override
     @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
     Optional<PostEntity> findById(Long id);
