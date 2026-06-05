@@ -12,6 +12,8 @@ public interface PostRepository {
 
     PaginationResponse<PostModel> getAll(int pageNumber, int pageSize);
 
+    PaginationResponse<PostModel> getRandom(int pageNumber, int pageSize);
+
     PaginationResponse<PostModel> getByUserId(Long userId, int pageNumber, int pageSize);
 
     PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize);
