@@ -47,6 +47,7 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripJpaRepos
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollVoteJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripMemberJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceImageJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Service
@@ -60,6 +61,7 @@ public class TripService {
     private final TripPollJpaRepository tripPollJpaRepository;
     private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
     private final TripActivityLogJpaRepository tripActivityLogJpaRepository;
+    private final TravelPlaceImageJpaRepository travelPlaceImageJpaRepository;
     private final TripActivityLogService tripActivityLogService;
     private final edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService;
 
@@ -71,6 +73,7 @@ public class TripService {
             TripPollJpaRepository tripPollJpaRepository,
             TripPollVoteJpaRepository tripPollVoteJpaRepository,
             TripActivityLogJpaRepository tripActivityLogJpaRepository,
+            TravelPlaceImageJpaRepository travelPlaceImageJpaRepository,
             TripActivityLogService tripActivityLogService,
             edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService) {
         this.tripJpaRepository = tripJpaRepository;
@@ -80,6 +83,7 @@ public class TripService {
         this.tripPollJpaRepository = tripPollJpaRepository;
         this.tripPollVoteJpaRepository = tripPollVoteJpaRepository;
         this.tripActivityLogJpaRepository = tripActivityLogJpaRepository;
+        this.travelPlaceImageJpaRepository = travelPlaceImageJpaRepository;
         this.tripActivityLogService = tripActivityLogService;
         this.inviteCodeService = inviteCodeService;
     }
@@ -182,7 +186,8 @@ public class TripService {
             trip.getBudgetMax(),
             trip.getStatus(),
             trip.getInviteCode(),
-            DEFAULT_MAX_MEMBERS);
+            DEFAULT_MAX_MEMBERS,
+            getTripImageUrls(trip));
 
         TripRole myRole = TripRoleMapper.fromMemberRole(membership.getRole());
         return new TripDetailResponse(tripInfo, myRole.name(), members, highlights, recentActivities);
@@ -280,7 +285,22 @@ public class TripService {
             trip.getBudgetMax(),
             trip.getStatus(),
             trip.getInviteCode(),
-            DEFAULT_MAX_MEMBERS);
+            DEFAULT_MAX_MEMBERS,
+            getTripImageUrls(trip));
+    }
+
+    private List<String> getTripImageUrls(TripEntity trip) {
+        if (trip.getPlaceId() == null) {
+            return List.of();
+        }
+
+        return this.travelPlaceImageJpaRepository
+            .findByPlaceIdOrderByMainDescIdAsc(trip.getPlaceId())
+            .stream()
+            .map(image -> image.getImageUrl())
+            .filter(imageUrl -> imageUrl != null && !imageUrl.isBlank())
+            .distinct()
+            .toList();
     }
 
     @Transactional
