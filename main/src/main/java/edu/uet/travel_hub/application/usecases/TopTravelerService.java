@@ -47,6 +47,7 @@ public class TopTravelerService {
                         item.getUsername(),
                         item.getName(),
                         item.getAvatarUrl(),
+                        item.getFollowersCount() == null ? 0 : item.getFollowersCount(),
                         item.getScore() == null ? 0L : item.getScore(),
                         Boolean.TRUE.equals(item.getFollowing()),
                         Boolean.TRUE.equals(item.getCurrentUser())))

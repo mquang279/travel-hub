@@ -5,6 +5,7 @@ public record TopTravelerResponse(
         String username,
         String name,
         String avatarUrl,
+        int followersCount,
         long score,
         boolean following,
         boolean currentUser) {
