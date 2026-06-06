@@ -208,7 +208,7 @@ public class TripService {
     }
 
     @Transactional
-    public Long createTrip(Long currentUserId, CreateTripRequest request) {
+    public TripDetailResponse createTrip(Long currentUserId, CreateTripRequest request) {
         UserEntity leader = this.userJpaRepository.findById(currentUserId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -235,7 +235,7 @@ public class TripService {
             .build());
 
         this.tripActivityLogService.log(saved, leader, "CREATE_TRIP", "TRIP", saved.getId(), "trip created");
-        return saved.getId();
+        return getTripDetail(saved.getId(), currentUserId);
     }
 
     @Transactional

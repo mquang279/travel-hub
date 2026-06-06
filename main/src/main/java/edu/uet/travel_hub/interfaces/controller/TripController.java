@@ -46,7 +46,7 @@ public class TripController {
     }
 
     @PostMapping("/trips")
-    public ResponseEntity<Long> createTrip(@Valid @RequestBody CreateTripRequest request) {
+    public ResponseEntity<TripDetailResponse> createTrip(@Valid @RequestBody CreateTripRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(this.tripService.createTrip(this.currentUserProvider.getCurrentUserId(), request));
     }
