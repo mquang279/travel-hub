@@ -57,6 +57,7 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
                    u.username AS username,
                    u.name AS name,
                    u.avatar_url AS "avatarUrl",
+                   u.followers_count AS "followersCount",
                    (COALESCE(p.post_count, 0) * 5
                        + COALESCE(l.like_count, 0) * 2
                        + COALESCE(c.comment_count, 0) * 3) AS score,

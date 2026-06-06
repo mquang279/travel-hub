@@ -9,6 +9,8 @@ public interface TopTravelerStatsProjection {
 
     String getAvatarUrl();
 
+    Integer getFollowersCount();
+
     Long getScore();
 
     Boolean getFollowing();

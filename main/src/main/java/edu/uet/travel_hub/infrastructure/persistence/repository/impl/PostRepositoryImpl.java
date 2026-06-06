@@ -45,7 +45,7 @@ public class PostRepositoryImpl implements PostRepository {
     @Override
     public PaginationResponse<PostModel> getAll(int pageNumber, int pageSize) {
         PageRequest request = PageRequest.of(pageNumber, pageSize);
-        Page<PostEntity> posts = this.postJpaRepository.findAll(request);
+        Page<PostEntity> posts = this.postJpaRepository.findRandom(request);
         PaginationResponse<PostModel> response = new PaginationResponse<PostModel>(
                 posts.getNumber(),
                 posts.getSize(),
