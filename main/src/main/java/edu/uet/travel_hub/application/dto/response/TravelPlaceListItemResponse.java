@@ -6,6 +6,7 @@ public record TravelPlaceListItemResponse(
         String description,
         ProvinceResponse province,
         String mainImage,
+        java.util.List<TravelPlaceImageResponse> images,
         Integer views,
         String openingTime,
         double averageRating,
