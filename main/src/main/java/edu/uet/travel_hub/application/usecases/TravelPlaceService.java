@@ -54,8 +54,8 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepos
 public class TravelPlaceService {
     private static final int FEATURED_PLACE_LIMIT = 5;
     private static final Logger log = LoggerFactory.getLogger(TravelPlaceService.class);
-    private static final TravelPlaceReviewAuthorResponse UNKNOWN_REVIEW_AUTHOR =
-            new TravelPlaceReviewAuthorResponse(-1L, "Người dùng Travel Hub", "travelhub_user", null);
+    private static final TravelPlaceReviewAuthorResponse UNKNOWN_REVIEW_AUTHOR = new TravelPlaceReviewAuthorResponse(
+            -1L, "Người dùng Travel Hub", "travelhub_user", null);
 
     private final ProvinceJpaRepository provinceJpaRepository;
     private final TravelPlaceJpaRepository travelPlaceJpaRepository;
@@ -84,17 +84,19 @@ public class TravelPlaceService {
     }
 
     @Transactional(readOnly = true)
-    public PaginationResponse<TravelPlaceListItemResponse> getPlaces(int page, int pageSize, Long provinceId, String keyword) {
+    public PaginationResponse<TravelPlaceListItemResponse> getPlaces(int page, int pageSize, Long provinceId,
+            String keyword) {
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "id"));
-        Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.search(provinceId, normalizeKeyword(keyword), pageable);
+        Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.search(provinceId, normalizeKeyword(keyword),
+                pageable);
 
         List<Long> placeIds = places.stream().map(TravelPlaceEntity::getId).toList();
-        Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
+        Map<Long, List<TravelPlaceImageResponse>> imagesByPlaceId = resolveImagesByPlaceId(placeIds);
         Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
         List<TravelPlaceListItemResponse> data = places.getContent().stream()
                 .map(place -> toListItemResponse(
                         place,
-                        mainImages.get(place.getId()),
+                        imagesByPlaceId.getOrDefault(place.getId(), List.of()),
                         reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
                 .toList();
 
@@ -108,7 +110,7 @@ public class TravelPlaceService {
                 PageRequest.of(0, FEATURED_PLACE_LIMIT));
         Map<Long, TravelPlaceEntity> placesById = this.travelPlaceJpaRepository.findByIdIn(placeIds).stream()
                 .collect(LinkedHashMap::new, (places, place) -> places.put(place.getId(), place), Map::putAll);
-        Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
+        Map<Long, List<TravelPlaceImageResponse>> imagesByPlaceId = resolveImagesByPlaceId(placeIds);
         Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
 
         return placeIds.stream()
@@ -116,7 +118,7 @@ public class TravelPlaceService {
                 .filter(Objects::nonNull)
                 .map(place -> toListItemResponse(
                         place,
-                        mainImages.get(place.getId()),
+                        imagesByPlaceId.getOrDefault(place.getId(), List.of()),
                         reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
                 .toList();
     }
@@ -189,13 +191,15 @@ public class TravelPlaceService {
     }
 
     @Transactional
-    public TravelPlaceReviewResponse upsertReview(Long placeId, Long currentUserId, UpsertTravelPlaceReviewRequest request) {
+    public TravelPlaceReviewResponse upsertReview(Long placeId, Long currentUserId,
+            UpsertTravelPlaceReviewRequest request) {
         TravelPlaceEntity place = this.travelPlaceJpaRepository.findById(placeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Travel place not found"));
         UserEntity user = this.userJpaRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        TravelPlaceReviewEntity review = this.travelPlaceReviewJpaRepository.findByPlaceIdAndUserId(placeId, currentUserId)
+        TravelPlaceReviewEntity review = this.travelPlaceReviewJpaRepository
+                .findByPlaceIdAndUserId(placeId, currentUserId)
                 .orElseGet(() -> TravelPlaceReviewEntity.builder()
                         .place(place)
                         .user(user)
@@ -209,7 +213,8 @@ public class TravelPlaceService {
     }
 
     @Transactional(readOnly = true)
-    public PaginationResponse<TravelPlaceViewHistoryResponse> getViewHistory(Long currentUserId, int page, int pageSize) {
+    public PaginationResponse<TravelPlaceViewHistoryResponse> getViewHistory(Long currentUserId, int page,
+            int pageSize) {
         int safePage = Math.max(0, page);
         int safePageSize = Math.max(1, pageSize);
         List<TravelPlaceViewHistoryEntity> collapsedHistory = collapseConsecutiveViewHistory(
@@ -220,14 +225,14 @@ public class TravelPlaceService {
         int toIndex = Math.min(fromIndex + safePageSize, totalElements);
         List<TravelPlaceViewHistoryEntity> pageContent = collapsedHistory.subList(fromIndex, toIndex);
 
-        Map<Long, String> mainImages = resolveMainImageByPlaceId(
+        Map<Long, List<TravelPlaceImageResponse>> imagesByPlaceId = resolveImagesByPlaceId(
                 pageContent.stream().map(item -> item.getPlace().getId()).toList());
 
         List<TravelPlaceViewHistoryResponse> data = pageContent.stream()
                 .map(item -> new TravelPlaceViewHistoryResponse(
                         item.getPlace().getId(),
                         item.getPlace().getName(),
-                        mainImages.get(item.getPlace().getId()),
+                        imagesByPlaceId.get(item.getPlace().getId()).get(0).imageUrl(),
                         item.getPlace().getProvince().getName(),
                         item.getViewedAt()))
                 .toList();
@@ -251,13 +256,13 @@ public class TravelPlaceService {
         Pageable pageable = PageRequest.of(safePage, safePageSize);
         Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.findRandom(provinceId, pageable);
         List<Long> placeIds = places.stream().map(TravelPlaceEntity::getId).toList();
-        Map<Long, String> mainImages = resolveMainImageByPlaceId(placeIds);
+        Map<Long, List<TravelPlaceImageResponse>> imagesByPlaceId = resolveImagesByPlaceId(placeIds);
         Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
 
         List<TravelPlaceListItemResponse> data = places.getContent().stream()
                 .map(place -> toListItemResponse(
                         place,
-                        mainImages.get(place.getId()),
+                        imagesByPlaceId.getOrDefault(place.getId(), List.of()),
                         reviewSummaries.getOrDefault(place.getId(), emptyReviewSummary())))
                 .toList();
 
@@ -273,7 +278,8 @@ public class TravelPlaceService {
             TravelPlaceEntity place,
             Optional<Long> currentUserId,
             Integer displayedViews) {
-        List<TravelPlaceImageResponse> images = this.travelPlaceImageJpaRepository.findByPlaceIdOrderByMainDescIdAsc(place.getId())
+        List<TravelPlaceImageResponse> images = this.travelPlaceImageJpaRepository
+                .findByPlaceIdOrderByMainDescIdAsc(place.getId())
                 .stream()
                 .map(image -> new TravelPlaceImageResponse(image.getId(), image.getImageUrl(), image.isMain()))
                 .toList();
@@ -334,14 +340,24 @@ public class TravelPlaceService {
         return new ProvinceResponse(province.getId(), province.getName(), province.getImage());
     }
 
-    private TravelPlaceListItemResponse toListItemResponse(TravelPlaceEntity place, String mainImage,
+    private TravelPlaceListItemResponse toListItemResponse(TravelPlaceEntity place,
+            List<TravelPlaceImageResponse> images,
             TravelPlaceReviewSummaryResponse summary) {
+        String mainImage = images.stream()
+                .filter(TravelPlaceImageResponse::main)
+                .map(TravelPlaceImageResponse::imageUrl)
+                .findFirst()
+                .orElseGet(() -> images.stream()
+                        .map(TravelPlaceImageResponse::imageUrl)
+                        .findFirst()
+                        .orElse(null));
         return new TravelPlaceListItemResponse(
                 place.getId(),
                 place.getName(),
                 place.getDescription(),
                 toProvinceResponse(place.getProvince()),
                 mainImage,
+                images,
                 place.getViews(),
                 place.getOpeningTime(),
                 summary.averageRating(),
@@ -366,7 +382,8 @@ public class TravelPlaceService {
         }
 
         Map<Long, TravelPlaceReviewSummaryResponse> summaries = new LinkedHashMap<>();
-        for (TravelPlaceReviewStatsProjection stats : this.travelPlaceReviewJpaRepository.getStatsByPlaceIds(placeIds)) {
+        for (TravelPlaceReviewStatsProjection stats : this.travelPlaceReviewJpaRepository
+                .getStatsByPlaceIds(placeIds)) {
             Long placeId = stats.getPlaceId();
             if (placeId == null) {
                 continue;
@@ -443,8 +460,8 @@ public class TravelPlaceService {
     private void recordViewHistorySafely(Long placeId, Long userId) {
         try {
             this.sideEffectTransactionTemplate.executeWithoutResult(status -> {
-                Optional<TravelPlaceViewHistoryEntity> latestHistory =
-                        this.travelPlaceViewHistoryJpaRepository.findFirstByUserIdOrderByViewedAtDescIdDesc(userId);
+                Optional<TravelPlaceViewHistoryEntity> latestHistory = this.travelPlaceViewHistoryJpaRepository
+                        .findFirstByUserIdOrderByViewedAtDescIdDesc(userId);
                 if (latestHistory.isPresent()
                         && Objects.equals(latestHistory.get().getPlace().getId(), placeId)) {
                     TravelPlaceViewHistoryEntity latest = latestHistory.get();
@@ -484,16 +501,19 @@ public class TravelPlaceService {
         return collapsed;
     }
 
-    private Map<Long, String> resolveMainImageByPlaceId(Collection<Long> placeIds) {
+    private Map<Long, List<TravelPlaceImageResponse>> resolveImagesByPlaceId(Collection<Long> placeIds) {
         if (placeIds == null || placeIds.isEmpty()) {
             return Map.of();
         }
 
-        Map<Long, String> imageByPlaceId = new LinkedHashMap<>();
-        for (TravelPlaceImageEntity image : this.travelPlaceImageJpaRepository.findByPlaceIdInOrderByPlaceIdAscMainDescIdAsc(placeIds)) {
-            imageByPlaceId.putIfAbsent(image.getPlace().getId(), image.getImageUrl());
+        Map<Long, List<TravelPlaceImageResponse>> imagesByPlaceId = new LinkedHashMap<>();
+        for (TravelPlaceImageEntity image : this.travelPlaceImageJpaRepository
+                .findByPlaceIdInOrderByPlaceIdAscMainDescIdAsc(placeIds)) {
+            Long placeId = image.getPlace().getId();
+            imagesByPlaceId.computeIfAbsent(placeId, ignored -> new ArrayList<>())
+                    .add(new TravelPlaceImageResponse(image.getId(), image.getImageUrl(), image.isMain()));
         }
-        return imageByPlaceId;
+        return imagesByPlaceId;
     }
 
     private TravelPlaceEntity findPlaceById(Long placeId) {
