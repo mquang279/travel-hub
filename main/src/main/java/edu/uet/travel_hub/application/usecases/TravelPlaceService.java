@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.orm.jpa.JpaObjectRetrievalFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -49,6 +51,9 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceR
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceReviewStatsProjection;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceViewHistoryJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
+import static edu.uet.travel_hub.infrastructure.config.CacheConfig.CACHE_TRAVEL_PLACE_ADMIN_DETAILS;
+import static edu.uet.travel_hub.infrastructure.config.CacheConfig.CACHE_TRAVEL_PLACE_LISTS;
+import static edu.uet.travel_hub.infrastructure.config.CacheConfig.CACHE_TRAVEL_PLACE_RECOMMENDED;
 
 @Service
 public class TravelPlaceService {
@@ -90,6 +95,23 @@ public class TravelPlaceService {
         Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.search(provinceId, normalizeKeyword(keyword),
                 pageable);
 
+        return toListItemPageResponse(places);
+    }
+
+    @Transactional(readOnly = true)
+    public PaginationResponse<TravelPlaceListItemResponse> searchPlaces(int page, int pageSize, String keyword) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.max(pageSize, 1),
+                Sort.by(Sort.Direction.ASC, "name").and(Sort.by(Sort.Direction.ASC, "id")));
+        Page<TravelPlaceEntity> places = this.travelPlaceJpaRepository.searchByNameOrProvinceName(
+                normalizeKeyword(keyword),
+                pageable);
+
+        return toListItemPageResponse(places);
+    }
+
+    private PaginationResponse<TravelPlaceListItemResponse> toListItemPageResponse(Page<TravelPlaceEntity> places) {
         List<Long> placeIds = places.stream().map(TravelPlaceEntity::getId).toList();
         Map<Long, List<TravelPlaceImageResponse>> imagesByPlaceId = resolveImagesByPlaceId(placeIds);
         Map<Long, TravelPlaceReviewSummaryResponse> reviewSummaries = resolveReviewSummaryByPlaceId(placeIds);
@@ -140,6 +162,11 @@ public class TravelPlaceService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {
+            CACHE_TRAVEL_PLACE_LISTS,
+            CACHE_TRAVEL_PLACE_RECOMMENDED,
+            CACHE_TRAVEL_PLACE_ADMIN_DETAILS
+    }, allEntries = true)
     public TravelPlaceDetailResponse createPlace(UpsertTravelPlaceRequest request) {
         ProvinceEntity province = this.provinceJpaRepository.findById(request.provinceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Province not found"));
@@ -160,6 +187,11 @@ public class TravelPlaceService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {
+            CACHE_TRAVEL_PLACE_LISTS,
+            CACHE_TRAVEL_PLACE_RECOMMENDED,
+            CACHE_TRAVEL_PLACE_ADMIN_DETAILS
+    }, allEntries = true)
     public TravelPlaceDetailResponse updatePlace(Long placeId, UpsertTravelPlaceRequest request) {
         TravelPlaceEntity place = this.travelPlaceJpaRepository.findById(placeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Travel place not found"));
@@ -191,6 +223,11 @@ public class TravelPlaceService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {
+            CACHE_TRAVEL_PLACE_LISTS,
+            CACHE_TRAVEL_PLACE_RECOMMENDED,
+            CACHE_TRAVEL_PLACE_ADMIN_DETAILS
+    }, allEntries = true)
     public TravelPlaceReviewResponse upsertReview(Long placeId, Long currentUserId,
             UpsertTravelPlaceReviewRequest request) {
         TravelPlaceEntity place = this.travelPlaceJpaRepository.findById(placeId)

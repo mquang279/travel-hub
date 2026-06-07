@@ -2,6 +2,7 @@ package edu.uet.travel_hub.application.usecases;
 
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,9 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.WardEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.DistrictJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ProvinceJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.WardJpaRepository;
+import static edu.uet.travel_hub.infrastructure.config.CacheConfig.CACHE_DISTRICTS;
+import static edu.uet.travel_hub.infrastructure.config.CacheConfig.CACHE_PROVINCES;
+import static edu.uet.travel_hub.infrastructure.config.CacheConfig.CACHE_WARDS;
 
 @Service
 public class AdministrativeDivisionService {
