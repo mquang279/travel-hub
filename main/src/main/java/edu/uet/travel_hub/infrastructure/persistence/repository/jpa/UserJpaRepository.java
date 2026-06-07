@@ -45,6 +45,8 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
 
     Optional<UserEntity> findByEmail(String email);
 
+    Optional<UserEntity> findByFirebaseUid(String firebaseUid);
+
     @EntityGraph(attributePaths = "interests")
     @Query("SELECT u FROM UserEntity u WHERE u.id = :id")
     Optional<UserEntity> findByIdWithInterests(@Param("id") Long id);
@@ -52,6 +54,8 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByUsername(String username);
+
+    boolean existsByUsernameAndIdNot(String username, Long id);
 
     Optional<UserEntity> findByRefreshToken(String refreshToken);
 
