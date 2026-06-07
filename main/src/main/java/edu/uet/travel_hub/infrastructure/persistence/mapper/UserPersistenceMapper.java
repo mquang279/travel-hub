@@ -47,7 +47,7 @@ public class UserPersistenceMapper {
                 .gender(user.getGender())
                 .location(user.getLocation())
                 .tripType(user.getTripType())
-                .interests(copyInterests(user.getInterests()))
+                .interests(List.of())
                 .destination(user.getDestination())
                 .isOnboarded(user.isOnboarded())
                 .followersCount(user.getFollowersCount())
@@ -56,6 +56,12 @@ public class UserPersistenceMapper {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
+    }
+
+    public UserModel toDomainWithInterests(UserEntity user) {
+        UserModel model = toDomain(user);
+        model.setInterests(copyInterests(user.getInterests()));
+        return model;
     }
 
     private List<String> copyInterests(List<String> interests) {

@@ -33,6 +33,18 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: "redis:7-alpine"
+    container_name: travel-hub-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
@@ -41,3 +53,4 @@ volumes:
   postgres-data:
   minio-data:
   minio-config:
+  redis-data:

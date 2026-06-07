@@ -33,6 +33,24 @@ public interface TravelPlaceJpaRepository extends JpaRepository<TravelPlaceEntit
     @Query(value = """
             select p
             from TravelPlaceEntity p
+            join p.province province
+            where :keyword is null or :keyword = ''
+               or lower(p.name) like lower(concat('%', :keyword, '%'))
+               or lower(province.name) like lower(concat('%', :keyword, '%'))
+            """, countQuery = """
+            select count(p)
+            from TravelPlaceEntity p
+            join p.province province
+            where :keyword is null or :keyword = ''
+               or lower(p.name) like lower(concat('%', :keyword, '%'))
+               or lower(province.name) like lower(concat('%', :keyword, '%'))
+            """)
+    Page<TravelPlaceEntity> searchByNameOrProvinceName(@Param("keyword") String keyword, Pageable pageable);
+
+    @EntityGraph(attributePaths = { "province" })
+    @Query(value = """
+            select p
+            from TravelPlaceEntity p
             where (:provinceId is null or p.province.id = :provinceId)
             order by function('random')
             """, countQuery = """

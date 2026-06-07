@@ -35,8 +35,9 @@ public class GetSavedPostOfUserService implements GetSavedPostOfUserUseCase {
 
     @Override
     public PaginationResponse<PostModel> get(Long userId, int pageNumber, int pageSize) {
-        this.userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!this.userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
 
         PaginationResponse<PostModel> posts = this.postRepository.getSavedPostOfUser(userId, pageNumber, pageSize);
         Long currentUserId = this.currentUserProvider.getOptionalCurrentUserId().orElse(null);
