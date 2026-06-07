@@ -22,6 +22,8 @@ public interface PostRepository {
 
     PaginationResponse<PostModel> getSavedPostOfUser(Long userId, int pageNumber, int pageSize);
 
+    long countByUserId(Long userId);
+
     void increaseLikeCount(Long id);
 
     void decreaseLikeCount(Long id);

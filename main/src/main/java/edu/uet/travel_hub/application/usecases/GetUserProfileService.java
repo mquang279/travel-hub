@@ -6,6 +6,7 @@ import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
 import edu.uet.travel_hub.application.mapper.UserProfileMapper;
 import edu.uet.travel_hub.application.port.in.GetUserProfileUseCase;
 import edu.uet.travel_hub.application.port.out.FollowRepository;
+import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
 import edu.uet.travel_hub.domain.model.UserModel;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 public class GetUserProfileService implements GetUserProfileUseCase {
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+    private final PostRepository postRepository;
     private final UserProfileMapper userProfileMapper;
 
     @Override
@@ -27,6 +29,7 @@ public class GetUserProfileService implements GetUserProfileUseCase {
                 && !currentUserId.equals(targetUserId)
                 && followRepository.existsByFollowerIdAndFollowingId(currentUserId, targetUserId);
 
+        user.setPostsCount(Math.toIntExact(postRepository.countByUserId(targetUserId)));
         return userProfileMapper.toProfileResponse(user, isFollowing);
     }
 }

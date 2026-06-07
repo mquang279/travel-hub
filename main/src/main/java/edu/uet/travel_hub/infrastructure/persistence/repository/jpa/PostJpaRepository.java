@@ -34,6 +34,8 @@ public interface PostJpaRepository extends JpaRepository<PostEntity, Long> {
     @Query("SELECT p FROM PostEntity p WHERE p.user.id = :userId ORDER BY p.createdAt DESC, p.id DESC")
     Page<PostEntity> findByUserId(@Param("userId") Long userId, Pageable pageable);
 
+    long countByUserId(Long userId);
+
     @EntityGraph(attributePaths = { "user", "travelPlace", "travelPlace.province" })
     @Query("""
             SELECT p FROM PostEntity p

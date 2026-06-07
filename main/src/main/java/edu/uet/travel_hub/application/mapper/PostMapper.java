@@ -27,6 +27,7 @@ public class PostMapper {
                 .id(model.getId())
                 .likeCount(model.getLikeCount())
                 .commentCount(model.getCommentCount())
+                .saveCount(model.getSaveCount())
                 .isLiked(model.isLiked())
                 .savedByCurrentUser(model.isSavedByCurrentUser())
                 .travelPlaceId(model.getTravelPlaceId())
