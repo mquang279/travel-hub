@@ -150,11 +150,12 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public UserModel register(String email, String username, String password, Role role) {
+    public UserModel register(String email, String username, String name, String password, Role role) {
         UserEntity userEntity = UserEntity
                 .builder()
                 .email(email)
                 .username(username)
+                .name(name)
                 .hashPassword(password)
                 .role(role)
                 .build();

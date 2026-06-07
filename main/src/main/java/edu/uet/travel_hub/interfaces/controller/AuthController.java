@@ -3,62 +3,56 @@ package edu.uet.travel_hub.interfaces.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import edu.uet.travel_hub.application.dto.request.LoginRequest;
-import edu.uet.travel_hub.application.dto.request.RefreshTokenRequest;
-import edu.uet.travel_hub.application.dto.request.RegisterRequest;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
+import edu.uet.travel_hub.application.dto.request.FirebaseSessionRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;
-import edu.uet.travel_hub.application.usecases.LoginService;
-import edu.uet.travel_hub.application.usecases.LogoutService;
-import edu.uet.travel_hub.application.usecases.RefreshTokenService;
-import edu.uet.travel_hub.application.usecases.RegisterService;
+import edu.uet.travel_hub.application.exception.UnauthorizedException;
+import edu.uet.travel_hub.application.usecases.FirebaseUserSyncService;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-    private final RegisterService registerService;
-    private final LoginService loginService;
-    private final LogoutService logoutService;
-    private final RefreshTokenService refreshTokenService;
+    private static final String BEARER_PREFIX = "Bearer ";
+    private final FirebaseAuth firebaseAuth;
+    private final FirebaseUserSyncService firebaseUserSyncService;
 
-    public AuthController(RegisterService registerService, LoginService loginService, LogoutService logoutService,
-            RefreshTokenService refreshTokenService) {
-        this.registerService = registerService;
-        this.loginService = loginService;
-        this.logoutService = logoutService;
-        this.refreshTokenService = refreshTokenService;
+    public AuthController(FirebaseAuth firebaseAuth, FirebaseUserSyncService firebaseUserSyncService) {
+        this.firebaseAuth = firebaseAuth;
+        this.firebaseUserSyncService = firebaseUserSyncService;
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
-        AuthResponse response = this.registerService.register(request);
-        return ResponseEntity.ok().body(response);
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<AuthResponse> loging(@RequestBody LoginRequest request) {
-        AuthResponse response = this.loginService.login(request);
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        System.out.println(authentication);
-        return ResponseEntity.ok().body(response);
-    }
-
-    @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(this.refreshTokenService.refresh(request));
+    @PostMapping("/session")
+    public ResponseEntity<AuthResponse> syncSession(
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody(required = false) FirebaseSessionRequest request) {
+        try {
+            FirebaseToken token = firebaseAuth.verifyIdToken(extractBearerToken(authorization));
+            return ResponseEntity.ok(this.firebaseUserSyncService.syncSession(token, request));
+        } catch (FirebaseAuthException exception) {
+            throw new UnauthorizedException("Firebase ID token is invalid or expired");
+        }
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        this.logoutService.logout(email);
         return ResponseEntity.noContent().build();
     }
 
+    private String extractBearerToken(String authorization) {
+        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
+            throw new IllegalArgumentException("Missing Firebase ID token");
+        }
+        String token = authorization.substring(BEARER_PREFIX.length()).trim();
+        if (token.isEmpty()) {
+            throw new IllegalArgumentException("Missing Firebase ID token");
+        }
+        return token;
+    }
 }
