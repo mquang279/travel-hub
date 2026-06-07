@@ -20,7 +20,10 @@ import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "travel_places")
+@Table(name = "travel_places", indexes = {
+        @jakarta.persistence.Index(name = "idx_travel_places_province_id", columnList = "province_id"),
+        @jakarta.persistence.Index(name = "idx_travel_places_name", columnList = "name")
+})
 @Getter
 @Setter
 @ToString(exclude = {"province"})

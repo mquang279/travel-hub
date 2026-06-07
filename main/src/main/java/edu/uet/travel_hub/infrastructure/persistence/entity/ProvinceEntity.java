@@ -18,7 +18,9 @@ import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "provinces")
+@Table(name = "provinces", indexes = {
+        @jakarta.persistence.Index(name = "idx_provinces_name", columnList = "name")
+})
 @Getter
 @Setter
 @ToString(exclude = {"districts"})

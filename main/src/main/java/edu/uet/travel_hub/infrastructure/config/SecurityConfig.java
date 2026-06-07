@@ -57,7 +57,6 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.GET, "/api/places/featured").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/places", "/api/places/*",
                                         "/api/places/*/reviews", "/api/places/*/reviews/summary").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/ai/travel-assistant/chat").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/admin/places")
                                 .hasAuthority(Role.ADMIN.getDescription())
                                 .requestMatchers(HttpMethod.GET, "/api/admin/places/*")

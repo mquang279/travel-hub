@@ -2,7 +2,7 @@ import asyncio
 import json
 import re
 import unicodedata
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import HTTPException
 from langchain.agents import create_agent
@@ -57,24 +57,43 @@ class TravelAssistantService:
         payload: TravelAssistantChatRequest,
         pool: Any,
     ) -> TravelAssistantChatResponse:
-        user_message = self._latest_user_input(payload.message)
-        conversational_answer = self._conversational_answer(user_message)
-        if conversational_answer is not None:
-            return TravelAssistantChatResponse(
-                answer=conversational_answer,
-                places=[],
-            )
-
         if self.models:
             try:
                 return await asyncio.wait_for(
                     self._chat_with_agent(payload=payload, pool=pool),
                     timeout=15,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail="AI chat request failed",
+                ) from exc
 
-        return await self._chat_rule_based(payload=payload, pool=pool)
+        raise HTTPException(
+            status_code=503,
+            detail="No AI model is available",
+        )
+
+    async def chat_stream(
+        self,
+        payload: TravelAssistantChatRequest,
+        pool: Any,
+    ) -> AsyncGenerator[str, None]:
+        if self.models:
+            try:
+                async for chunk in self._chat_with_agent_stream(payload=payload, pool=pool):
+                    yield chunk
+                return
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail="AI chat request failed",
+                ) from exc
+
+        raise HTTPException(
+            status_code=503,
+            detail="No AI model is available",
+        )
 
     async def _chat_with_agent(
         self,
@@ -101,52 +120,79 @@ class TravelAssistantService:
             }
         )
         answer = self._extract_agent_text(result)
-        references = []
-        user_message = self._latest_user_input(payload.message)
-        if self._should_search_places(user_message):
-            references = await self._find_referenced_places(
-                answer=answer,
-                message=user_message,
-                pool=pool,
-            )
-        return TravelAssistantChatResponse(answer=answer, places=references)
+        return TravelAssistantChatResponse(answer=answer, places=[])
+
+    async def _chat_with_agent_stream(
+        self,
+        payload: TravelAssistantChatRequest,
+        pool: Any,
+    ) -> AsyncGenerator[str, None]:
+        model = await self.get_available_model(pool=pool)
+        agent = create_agent(
+            model=model,
+            tools=self._build_tools(pool=pool),
+            system_prompt=TRAVEL_ASSISTANT_SYSTEM_PROMPT,
+        )
+        history = [
+            {"role": item.role, "content": item.content}
+            for item in payload.history[-10:]
+            if item.content.strip()
+        ]
+        answer_parts: list[str] = []
+        stream = agent.astream(
+            {
+                "messages": [
+                    *history,
+                    {"role": "user", "content": payload.message},
+                ]
+            },
+            stream_mode="messages",
+            version="v2",
+        )
+        async for chunk in stream:
+            if chunk.get("type") != "messages":
+                continue
+            token, _metadata = chunk["data"]
+            for block in token.content_blocks:
+                text = self._extract_text_block(block)
+                if text:
+                    answer_parts.append(text)
+                    yield self._sse_event("message", {"text": text})
+
+        answer = "".join(answer_parts).strip()
+        yield self._sse_event(
+            "final",
+            TravelAssistantChatResponse(answer=answer, places=[]).model_dump(),
+        )
 
     def _build_tools(self, pool: Any):
         @tool
-        async def search_travel_places(keyword: str, province: str = "", limit: int = 5) -> str:
+        async def search_travel_places(keyword: str, province: str = "", limit: int = 5) -> dict[str, Any]:
             """Search Travel Hub places in Vietnamese, with or without diacritics."""
-            return self._serialize_tool_result(
-                await self._search_places(
-                    pool=pool,
-                    keyword=keyword,
-                    province=province,
-                    limit=limit,
-                ),
+            return await self._search_places(
+                pool=pool,
+                keyword=keyword,
+                province=province,
+                limit=limit,
             )
 
         @tool
-        async def get_place_reviews(place_id: int, limit: int = 5) -> str:
+        async def get_place_reviews(place_id: int, limit: int = 5) -> dict[str, Any]:
             """Get recent reviews, rating summary, and public reviewer profiles for a place."""
-            return self._serialize_tool_result(
-                await self._get_place_reviews(pool=pool, place_id=place_id, limit=limit),
-            )
+            return await self._get_place_reviews(pool=pool, place_id=place_id, limit=limit)
 
         @tool
-        async def lookup_place_detail(place_id: int) -> str:
+        async def lookup_place_detail(place_id: int) -> dict[str, Any]:
             """Look up one Travel Hub place detail by place ID."""
-            return self._serialize_tool_result(
-                await self._lookup_place_detail(pool=pool, place_id=place_id),
-            )
+            return await self._lookup_place_detail(pool=pool, place_id=place_id)
 
         @tool
-        async def find_reviewer_reviews(user_query: str, limit: int = 5) -> str:
+        async def find_reviewer_reviews(user_query: str, limit: int = 5) -> dict[str, Any]:
             """Find a user by name or username and return their public profile and place reviews."""
-            return self._serialize_tool_result(
-                await self._find_reviewer_reviews(
-                    pool=pool,
-                    user_query=user_query,
-                    limit=limit,
-                ),
+            return await self._find_reviewer_reviews(
+                pool=pool,
+                user_query=user_query,
+                limit=limit,
             )
 
         return [
@@ -155,41 +201,6 @@ class TravelAssistantService:
             lookup_place_detail,
             find_reviewer_reviews,
         ]
-
-    async def _chat_rule_based(
-        self,
-        payload: TravelAssistantChatRequest,
-        pool: Any,
-    ) -> TravelAssistantChatResponse:
-        user_message = self._latest_user_input(payload.message)
-        if not self._should_search_places(user_message):
-            return TravelAssistantChatResponse(
-                answer=(
-                    "Mình chưa hiểu rõ ý bạn. Bạn đang muốn tìm địa điểm, xem review "
-                    "hay lên kế hoạch cho chuyến đi nào?"
-                ),
-                places=[],
-            )
-
-        places = await self._search_places(pool=pool, keyword=user_message, province="", limit=5)
-        if not places:
-            return TravelAssistantChatResponse(
-                answer="Mình chưa tìm thấy địa điểm phù hợp trong Travel Hub. Bạn có thể nói rõ tỉnh/thành, kiểu chuyến đi hoặc sở thích như biển, núi, lịch sử, ẩm thực để mình tra cứu lại.",
-                places=[],
-            )
-
-        lines = ["Dựa trên dữ liệu địa điểm và review trong Travel Hub, bạn có thể cân nhắc:"]
-        references: list[TravelAssistantPlaceReference] = []
-        for place in places:
-            rating = place.get("average_rating")
-            rating_text = f"{rating:.1f}/5" if rating is not None else "chưa có điểm"
-            lines.append(
-                f"- {place['name']} ({place.get('province') or 'chưa rõ tỉnh/thành'}): {rating_text}, {place['review_count']} review. {self._shorten(place.get('description'))}"
-            )
-            references.append(self._to_reference(place))
-
-        lines.append("Bạn muốn mình lọc tiếp theo ngân sách, thời gian đi, hay kiểu trải nghiệm không?")
-        return TravelAssistantChatResponse(answer="\n".join(lines), places=references)
 
     async def _search_places(
         self,
@@ -209,10 +220,10 @@ class TravelAssistantService:
                         tp.*,
                         p.name AS province,
                         p.codename AS province_codename,
-                        translate(lower(tp.name), $4, $5) AS normalized_name,
-                        translate(lower(COALESCE(tp.description, '')), $4, $5) AS normalized_description,
-                        translate(lower(p.name), $4, $5) AS normalized_province,
-                        translate(lower(COALESCE(p.codename, '')), $4, $5) AS normalized_codename
+                        unaccent(lower(tp.name)) AS normalized_name,
+                        unaccent(lower(COALESCE(tp.description, ''))) AS normalized_description,
+                        unaccent(lower(p.name)) AS normalized_province,
+                        unaccent(lower(COALESCE(p.codename, ''))) AS normalized_codename
                     FROM travel_places tp
                     JOIN provinces p ON p.id = tp.province_id
                 )
@@ -278,8 +289,6 @@ class TravelAssistantService:
                 normalized_query,
                 terms,
                 normalized_limit,
-                self._vietnamese_characters(),
-                self._ascii_replacements(),
             )
         return [dict(row) for row in rows]
 
@@ -426,15 +435,6 @@ class TravelAssistantService:
             )
         return dict(row) if row else {}
 
-    async def _find_referenced_places(
-        self,
-        answer: str,
-        message: str,
-        pool: Any,
-    ) -> list[TravelAssistantPlaceReference]:
-        places = await self._search_places(pool=pool, keyword=f"{message} {answer[:500]}", province="", limit=5)
-        return [self._to_reference(place) for place in places]
-
     def _to_reference(self, row: dict[str, Any]) -> TravelAssistantPlaceReference:
         rating = row.get("average_rating")
         return TravelAssistantPlaceReference(
@@ -459,61 +459,24 @@ class TravelAssistantService:
                     )
         return str(result)
 
-    def _conversational_answer(self, message: str) -> str | None:
-        normalized = self._normalize_vietnamese(message)
-        compact = re.sub(r"[^\w]+", "", normalized)
-        if not compact:
-            return "Mình đây. Bạn muốn mình hỗ trợ gì cho chuyến đi?"
+    def _extract_text_block(self, block: Any) -> str:
+        if isinstance(block, dict):
+            if block.get("type") == "text":
+                return str(block.get("text") or "")
+            return str(block.get("text") or "")
+        text = getattr(block, "text", None)
+        if isinstance(text, str):
+            return text
+        return ""
 
-        if len(compact) <= 2 or compact in {"alo", "hello", "hi", "hey"}:
-            return "Mình đây. Bạn đang tính đi đâu, hay cần mình tìm gì?"
-
-        if normalized in {
-            "cam on",
-            "cam on ban",
-            "thanks",
-            "thank you",
-            "ok cam on",
-        }:
-            return "Không có gì. Khi nào cần tìm địa điểm hay xem review, cứ nhắn mình nhé."
-
-        if normalized in {"tam biet", "bye", "goodbye"}:
-            return "Tạm biệt bạn. Chúc bạn có một chuyến đi thật vui."
-
-        return None
+    def _sse_event(self, event: str, data: Any) -> str:
+        return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
     def _latest_user_input(self, message: str) -> str:
         marker = "Câu hỏi của người dùng:"
         if marker not in message:
             return message.strip()
         return message.rsplit(marker, maxsplit=1)[-1].strip()
-
-    def _should_search_places(self, message: str) -> bool:
-        normalized = self._normalize_vietnamese(message)
-        if len(normalized) < 3:
-            return False
-
-        search_signals = {
-            "di dau",
-            "dia diem",
-            "diem den",
-            "tham quan",
-            "du lich",
-            "review",
-            "danh gia",
-            "goi y",
-            "bien",
-            "nui",
-            "choi",
-            "an gi",
-            "quan an",
-            "lich trinh",
-            "trip",
-            "travel",
-            "place",
-            "destination",
-        }
-        return any(signal in normalized for signal in search_signals)
 
     def _query_terms(self, text: str) -> list[str]:
         ignored = {
@@ -547,33 +510,8 @@ class TravelAssistantService:
         )
         return re.sub(r"\s+", " ", without_diacritics).strip()
 
-    def _vietnamese_characters(self) -> str:
-        return (
-            "àáạảãâầấậẩẫăằắặẳẵ"
-            "èéẹẻẽêềếệểễ"
-            "ìíịỉĩ"
-            "òóọỏõôồốộổỗơờớợởỡ"
-            "ùúụủũưừứựửữ"
-            "ỳýỵỷỹ"
-            "đ"
-        )
-
-    def _ascii_replacements(self) -> str:
-        return (
-            "aaaaaaaaaaaaaaaaa"
-            "eeeeeeeeeee"
-            "iiiii"
-            "ooooooooooooooooo"
-            "uuuuuuuuuuu"
-            "yyyyy"
-            "d"
-        )
-
     def _shorten(self, text: str | None) -> str:
         if not text:
             return "Chưa có mô tả chi tiết."
         cleaned = re.sub(r"\s+", " ", text).strip()
         return cleaned[:180] + ("..." if len(cleaned) > 180 else "")
-
-    def _serialize_tool_result(self, value: Any) -> str:
-        return json.dumps(value, ensure_ascii=False, default=str)

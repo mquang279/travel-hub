@@ -11,18 +11,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import edu.uet.travel_hub.application.dto.request.CreatePostRequest;
-import edu.uet.travel_hub.application.port.out.AiEmbeddingGateway;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.PostRepository;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.PostModel;
-import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceJpaRepository;
 
 class CreatePostServiceTest {
     private CurrentUserProvider currentUserProvider;
     private PostRepository postRepository;
     private UserRepository userRepository;
-    private AiEmbeddingGateway aiEmbeddingGateway;
     private CreatePostService createPostService;
 
     @BeforeEach
@@ -30,13 +27,10 @@ class CreatePostServiceTest {
         currentUserProvider = mock(CurrentUserProvider.class);
         postRepository = mock(PostRepository.class);
         userRepository = mock(UserRepository.class);
-        aiEmbeddingGateway = mock(AiEmbeddingGateway.class);
         createPostService = new CreatePostService(
                 currentUserProvider,
                 postRepository,
-                userRepository,
-                mock(TravelPlaceJpaRepository.class),
-                aiEmbeddingGateway);
+                userRepository);
     }
 
     @Test
@@ -55,6 +49,5 @@ class CreatePostServiceTest {
 
         assertThat(result).isSameAs(savedPost);
         verify(userRepository).incrementPosts(1L);
-        verify(aiEmbeddingGateway).upsertPostEmbedding(any());
     }
 }

@@ -52,6 +52,7 @@ async def init_db(pool):
             ON rate_limit_log (key, ts DESC);
 
             CREATE EXTENSION IF NOT EXISTS vector;
+            CREATE EXTENSION IF NOT EXISTS unaccent;
 
             CREATE TABLE IF NOT EXISTS user_preferences (
                 user_id BIGINT PRIMARY KEY,
@@ -252,6 +253,35 @@ async def chat_with_travel_assistant(
     return await request.app.state.travel_assistant_service.chat(
         payload=payload,
         pool=pg_pool,
+    )
+
+
+@app.post("/api/travel-assistant/chat/stream")
+async def chat_with_travel_assistant_stream(
+    payload: TravelAssistantChatRequest,
+    request: Request,
+):
+    pg_pool = request.app.state.pg_pool
+
+    async def event_generator():
+        try:
+            async for chunk in request.app.state.travel_assistant_service.chat_stream(
+                payload=payload,
+                pool=pg_pool,
+            ):
+                yield chunk
+        except Exception as exc:
+            yield f"event: error\ndata: {json.dumps({'message': str(exc)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+        },
+        status_code=200,
     )
 
 
