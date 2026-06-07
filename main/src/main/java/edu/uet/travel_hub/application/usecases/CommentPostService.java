@@ -37,8 +37,8 @@ public class CommentPostService implements CommentPostUseCase {
                 .owner(this.userRepository.findById(userId).get())
                 .post(this.postRepository.findById(postId).get()).build();
         if (!userId.equals(postModel.getUserId())) {
-            String title = "New comment on your post";
-            String body = commenterUsername + " commented on your post";
+            String title = "Lượt bình luận bài đăng mới";
+            String body = commenterUsername + " đã bình luận bài đăng của bạn";
             this.saveNotificationService.save(postModel.getUserId(), title, body, NotificationType.COMMENT, postId);
         }
         CommentModel savedComment = this.commentRepository.save(commentModel);
