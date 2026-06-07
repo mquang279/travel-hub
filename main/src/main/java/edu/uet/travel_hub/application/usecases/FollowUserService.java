@@ -43,8 +43,8 @@ public class FollowUserService implements FollowUserUseCase {
 
             UserModel follower = userRepository.findById(currentUserId)
                     .orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
-            String title = "New follower";
-            String body = follower.getUsername() + " started following you";
+            String title = "Người theo dõi mới";
+            String body = follower.getUsername() + " đã theo dõi bạn";
             this.saveNotificationService.save(targetUserId, title, body, NotificationType.FOLLOW, currentUserId);
         }
     }
