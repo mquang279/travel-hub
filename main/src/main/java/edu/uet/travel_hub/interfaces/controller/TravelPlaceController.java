@@ -48,6 +48,14 @@ public class TravelPlaceController {
         return ResponseEntity.ok(this.travelPlaceService.getFeaturedPlaces());
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<PaginationResponse<TravelPlaceListItemResponse>> searchPlaces(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String query) {
+        return ResponseEntity.ok(this.travelPlaceService.searchPlaces(page, pageSize, query));
+    }
+
     @GetMapping("/recommendations")
     public ResponseEntity<PaginationResponse<TravelPlaceListItemResponse>> getRecommendations(
             @RequestParam(defaultValue = "0") int page,
