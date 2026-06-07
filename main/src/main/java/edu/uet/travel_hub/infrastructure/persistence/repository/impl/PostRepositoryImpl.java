@@ -76,6 +76,11 @@ public class PostRepositoryImpl implements PostRepository {
     }
 
     @Override
+    public long countByUserId(Long userId) {
+        return this.postJpaRepository.countByUserId(userId);
+    }
+
+    @Override
     public PaginationResponse<PostModel> searchByDescription(String description, int pageNumber, int pageSize) {
         PageRequest request = PageRequest.of(pageNumber, pageSize);
         Page<PostEntity> posts = this.postJpaRepository.searchByDescription(normalizeSearchTerm(description), request);

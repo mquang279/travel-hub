@@ -37,6 +37,11 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
     @Query("update UserEntity u set u.followersCount = CASE WHEN u.followersCount > 0 THEN u.followersCount - 1 ELSE 0 END where u.id = :id")
     void decrementFollowers(@Param("id") Long id);
 
+    @Modifying
+    @Transactional
+    @Query("update UserEntity u set u.postsCount = u.postsCount + 1 where u.id = :id")
+    void incrementPosts(@Param("id") Long id);
+
     Optional<UserEntity> findByEmail(String email);
 
     boolean existsByEmail(String email);

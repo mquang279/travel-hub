@@ -27,6 +27,8 @@ public class PostModel {
 
     private int commentCount;
 
+    private int saveCount;
+
     private boolean isLiked;
 
     private boolean savedByCurrentUser;

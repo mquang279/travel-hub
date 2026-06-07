@@ -17,6 +17,8 @@ public interface SavedPostJpaRepository extends JpaRepository<SavedPostEntity, L
 
     boolean existsByUserIdAndPostId(Long userId, Long postId);
 
+    long countByPostId(Long postId);
+
     @Query("SELECT s.post.id FROM SavedPostEntity s WHERE s.user.id = :userId AND s.post.id IN :postIds")
     List<Long> findSavedPostIds(@Param("userId") Long userId, @Param("postIds") Collection<Long> postIds);
 }

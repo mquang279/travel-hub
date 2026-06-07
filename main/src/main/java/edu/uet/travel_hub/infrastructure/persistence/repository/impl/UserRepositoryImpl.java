@@ -132,6 +132,12 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    @Transactional
+    public void incrementPosts(Long id) {
+        this.userJpaRepository.incrementPosts(id);
+    }
+
+    @Override
     public UserModel register(String email, String username, String password, Role role) {
         UserEntity userEntity = UserEntity
                 .builder()
