@@ -13,7 +13,11 @@ public interface UserRepository {
 
     Optional<UserModel> findById(Long id);
 
+    Optional<UserModel> findByIdWithInterests(Long id);
+
     Optional<UserModel> findByEmail(String email);
+
+    boolean existsById(Long id);
 
     boolean existsByEmail(String email);
 

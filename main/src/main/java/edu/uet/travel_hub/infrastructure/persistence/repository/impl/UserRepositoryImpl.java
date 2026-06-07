@@ -63,8 +63,20 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<UserModel> findByIdWithInterests(Long id) {
+        return this.userJpaRepository.findByIdWithInterests(id).map(mapper::toDomainWithInterests);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<UserModel> findByEmail(String email) {
         return this.userJpaRepository.findByEmail(email).map(mapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsById(Long id) {
+        return this.userJpaRepository.existsById(id);
     }
 
     @Override

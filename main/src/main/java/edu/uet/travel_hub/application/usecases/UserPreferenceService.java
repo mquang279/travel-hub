@@ -19,14 +19,14 @@ public class UserPreferenceService {
 
     @Transactional(readOnly = true)
     public PreferenceResponse getPreferences(Long userId) {
-        UserModel user = this.userRepository.findById(userId)
+        UserModel user = this.userRepository.findByIdWithInterests(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return toResponse(user);
     }
 
     @Transactional
     public PreferenceResponse updatePreferences(Long userId, PreferenceUpdateRequest request) {
-        UserModel user = this.userRepository.findById(userId)
+        UserModel user = this.userRepository.findByIdWithInterests(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         user.setTripType(normalize(request.tripType()));
