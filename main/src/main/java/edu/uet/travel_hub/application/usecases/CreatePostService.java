@@ -8,6 +8,7 @@ import edu.uet.travel_hub.application.port.in.CreatePostUseCase;
 import edu.uet.travel_hub.application.port.out.AiEmbeddingGateway;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.port.out.PostRepository;
+import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.PostEmbeddingSyncModel;
 import edu.uet.travel_hub.domain.model.PostModel;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TravelPlaceEntity;
@@ -17,16 +18,19 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceJ
 public class CreatePostService implements CreatePostUseCase {
     private final CurrentUserProvider userProvider;
     private final PostRepository postRepository;
+    private final UserRepository userRepository;
     private final TravelPlaceJpaRepository travelPlaceJpaRepository;
     private final AiEmbeddingGateway aiEmbeddingGateway;
 
     public CreatePostService(
             CurrentUserProvider userProvider,
             PostRepository postRepository,
+            UserRepository userRepository,
             TravelPlaceJpaRepository travelPlaceJpaRepository,
             AiEmbeddingGateway aiEmbeddingGateway) {
         this.userProvider = userProvider;
         this.postRepository = postRepository;
+        this.userRepository = userRepository;
         this.travelPlaceJpaRepository = travelPlaceJpaRepository;
         this.aiEmbeddingGateway = aiEmbeddingGateway;
     }
@@ -43,6 +47,7 @@ public class CreatePostService implements CreatePostUseCase {
                 .userId(userId)
                 .build();
         PostModel savedPost = this.postRepository.save(userId, post);
+        this.userRepository.incrementPosts(userId);
         this.aiEmbeddingGateway.upsertPostEmbedding(toEmbeddingModel(savedPost));
         return savedPost;
     }

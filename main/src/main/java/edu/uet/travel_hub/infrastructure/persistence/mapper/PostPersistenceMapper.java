@@ -69,6 +69,7 @@ public class PostPersistenceMapper {
                 .updatedAt(entity.getUpdatedAt())
                 .commentCount(entity.getCommentCount())
                 .likeCount(entity.getLikeCount())
+                .saveCount(entity.getSaveCount())
                 .travelPlaceId(travelPlaceId)
                 .location(location)
                 .userId(entity.getUser().getId())

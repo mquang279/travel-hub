@@ -7,7 +7,6 @@ import edu.uet.travel_hub.application.port.in.GetSavedPostOfUserUseCase;
 import edu.uet.travel_hub.application.port.in.ChangePasswordUseCase;
 import edu.uet.travel_hub.application.port.in.SearchUsersUseCase;
 import edu.uet.travel_hub.application.port.in.UpdateProfileUseCase;
-import edu.uet.travel_hub.application.port.in.UploadAvatarUseCase;
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.dto.response.PostResponse;
 import edu.uet.travel_hub.application.dto.response.TopTravelerResponse;
@@ -27,13 +26,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 
 @RestController
@@ -48,7 +45,6 @@ public class UserController {
 	private final SearchUsersUseCase searchUsersUseCase;
 	private final UpdateProfileUseCase updateProfileUseCase;
 	private final ChangePasswordUseCase changePasswordUseCase;
-	private final UploadAvatarUseCase uploadAvatarUseCase;
 	private final UserPreferenceService userPreferenceService;
 	private final TopTravelerService topTravelerService;
 	private final CurrentUserProvider currentUserProvider;
@@ -143,13 +139,6 @@ public class UserController {
 		Long currentUserId = currentUserProvider.getCurrentUserId();
 		ensureCurrentUser(currentUserId, userId);
 		return ResponseEntity.ok(userPreferenceService.updatePreferences(userId, request));
-	}
-
-	@PostMapping("/me/avatar")
-	public ResponseEntity<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
-		Long currentUserId = currentUserProvider.getCurrentUserId();
-		String avatarUrl = uploadAvatarUseCase.uploadAvatar(currentUserId, file);
-		return ResponseEntity.ok(avatarUrl);
 	}
 
 	private void ensureCurrentUser(Long currentUserId, Long userId) {

@@ -2,6 +2,7 @@ package edu.uet.travel_hub.application.dto.response;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import edu.uet.travel_hub.domain.enums.TripStatus;
 
@@ -18,5 +19,6 @@ public record TripInfoResponse(
         BigDecimal budgetMax,
         TripStatus status,
         String inviteCode,
-        Integer maxMembers) {
+        Integer maxMembers,
+        List<String> imageUrls) {
 }

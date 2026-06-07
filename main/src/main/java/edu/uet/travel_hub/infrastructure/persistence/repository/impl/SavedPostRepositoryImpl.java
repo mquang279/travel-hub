@@ -49,6 +49,11 @@ public class SavedPostRepositoryImpl implements SavedPostRepository {
     }
 
     @Override
+    public long countByPostId(Long postId) {
+        return this.savedPostJpaRepository.countByPostId(postId);
+    }
+
+    @Override
     public Set<Long> findSavedPostIds(Long userId, Collection<Long> postIds) {
         if (userId == null || postIds == null || postIds.isEmpty()) {
             return Set.of();

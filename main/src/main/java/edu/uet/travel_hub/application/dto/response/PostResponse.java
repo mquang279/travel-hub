@@ -13,6 +13,7 @@ public record PostResponse(
                 UserResponse owner,
                 int likeCount,
                 int commentCount,
+                int saveCount,
                 boolean isLiked,
                 boolean savedByCurrentUser,
                 Long travelPlaceId,

@@ -32,4 +32,6 @@ public interface UserRepository {
     void incrementFollowers(Long id);
 
     void decrementFollowers(Long id);
+
+    void incrementPosts(Long id);
 }

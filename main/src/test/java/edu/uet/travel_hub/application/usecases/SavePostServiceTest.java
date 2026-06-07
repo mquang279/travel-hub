@@ -36,10 +36,12 @@ class SavePostServiceTest {
         when(currentUserProvider.getCurrentUserId()).thenReturn(1L);
         when(postRepository.findById(10L)).thenReturn(Optional.of(PostModel.builder().id(10L).build()));
         when(savedPostRepository.exists(1L, 10L)).thenReturn(false);
+        when(savedPostRepository.countByPostId(10L)).thenReturn(1L);
 
         SavePostResponse response = savePostService.save(10L);
 
         assertThat(response.saved()).isTrue();
+        assertThat(response.saveCount()).isEqualTo(1);
         verify(savedPostRepository).save(1L, 10L);
     }
 
@@ -48,10 +50,12 @@ class SavePostServiceTest {
         when(currentUserProvider.getCurrentUserId()).thenReturn(1L);
         when(postRepository.findById(10L)).thenReturn(Optional.of(PostModel.builder().id(10L).build()));
         when(savedPostRepository.exists(1L, 10L)).thenReturn(true);
+        when(savedPostRepository.countByPostId(10L)).thenReturn(2L);
 
         SavePostResponse response = savePostService.save(10L);
 
         assertThat(response.saved()).isTrue();
+        assertThat(response.saveCount()).isEqualTo(2);
         verify(savedPostRepository, never()).save(1L, 10L);
         verify(savedPostRepository, never()).delete(1L, 10L);
     }
@@ -60,10 +64,12 @@ class SavePostServiceTest {
     void unsave_deletesSavedPost() {
         when(currentUserProvider.getCurrentUserId()).thenReturn(1L);
         when(postRepository.findById(10L)).thenReturn(Optional.of(PostModel.builder().id(10L).build()));
+        when(savedPostRepository.countByPostId(10L)).thenReturn(0L);
 
         SavePostResponse response = savePostService.unsave(10L);
 
         assertThat(response.saved()).isFalse();
+        assertThat(response.saveCount()).isZero();
         verify(savedPostRepository).delete(1L, 10L);
     }
 }

@@ -45,7 +45,7 @@ public class PostRepositoryImpl implements PostRepository {
     @Override
     public PaginationResponse<PostModel> getAll(int pageNumber, int pageSize) {
         PageRequest request = PageRequest.of(pageNumber, pageSize);
-        Page<PostEntity> posts = this.postJpaRepository.findAll(request);
+        Page<PostEntity> posts = this.postJpaRepository.findRandom(request);
         PaginationResponse<PostModel> response = new PaginationResponse<PostModel>(
                 posts.getNumber(),
                 posts.getSize(),
@@ -73,6 +73,11 @@ public class PostRepositoryImpl implements PostRepository {
                 posts.getTotalElements(),
                 posts.getContent().stream().map(mapper::toDomain).toList());
         return response;
+    }
+
+    @Override
+    public long countByUserId(Long userId) {
+        return this.postJpaRepository.countByUserId(userId);
     }
 
     @Override

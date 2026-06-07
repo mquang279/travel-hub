@@ -25,11 +25,16 @@ from src.entity.recommendation import (
     TravelPlaceRecommendationResponse,
 )
 from src.entity.setting import get_settings
+from src.entity.travel_assistant import (
+    TravelAssistantChatRequest,
+    TravelAssistantChatResponse,
+)
 from src.services.embedding import EmbeddingService
 from src.services.content_embedding_processor import ContentEmbeddingProcessor
 from src.services.embedding_text_composer import EmbeddingTextComposer
 from src.services.place_recommendation_service import PlaceRecommendationService
 from src.services.preference_profile_processor import PreferenceProfileProcessor
+from src.services.travel_assistant import TravelAssistantService
 from src.services import itinerary
 
 
@@ -97,6 +102,9 @@ async def lifespan(app: FastAPI):
     )
     await init_db(app.state.pg_pool)
     app.state.itinerary_service = itinerary.new_itinerary_service()
+    app.state.travel_assistant_service = TravelAssistantService(
+        keys=settings.google_api_keys.split(",")
+    )
     app.state.embedding_service = EmbeddingService(
         model_name=settings.embedding_model_name,
         dimensions=settings.embedding_dimensions,
@@ -230,6 +238,18 @@ async def create_itinerary_proposal(
 ):
     pg_pool = request.app.state.pg_pool
     return await request.app.state.itinerary_service.create_proposal(
+        payload=payload,
+        pool=pg_pool,
+    )
+
+
+@app.post("/api/travel-assistant/chat", response_model=TravelAssistantChatResponse)
+async def chat_with_travel_assistant(
+    payload: TravelAssistantChatRequest,
+    request: Request,
+):
+    pg_pool = request.app.state.pg_pool
+    return await request.app.state.travel_assistant_service.chat(
         payload=payload,
         pool=pg_pool,
     )

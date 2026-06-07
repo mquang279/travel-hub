@@ -10,5 +10,7 @@ public interface SavedPostRepository {
 
     boolean exists(Long userId, Long postId);
 
+    long countByPostId(Long postId);
+
     Set<Long> findSavedPostIds(Long userId, Collection<Long> postIds);
 }

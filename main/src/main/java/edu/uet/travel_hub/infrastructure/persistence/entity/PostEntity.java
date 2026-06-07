@@ -21,6 +21,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Formula;
 
 @Entity
 @Table(name = "posts")
@@ -61,6 +62,9 @@ public class PostEntity {
     private int likeCount;
 
     private int commentCount;
+
+    @Formula("(select count(*) from saved_posts sp where sp.post_id = id)")
+    private int saveCount;
 
     private Instant createdAt;
 

@@ -72,6 +72,7 @@ class TravelPlaceServiceTest {
         assertThat(result).extracting(TravelPlaceListItemResponse::id).containsExactly(20L, 10L);
         assertThat(result.get(0).averageRating()).isEqualTo(4.5);
         assertThat(result.get(1).mainImage()).isEqualTo("first.jpg");
+        assertThat(result.get(1).images()).extracting("imageUrl").containsExactly("first.jpg");
         verify(travelPlaceJpaRepository).findFeaturedPlaceIds(PageRequest.of(0, 5));
     }
 
