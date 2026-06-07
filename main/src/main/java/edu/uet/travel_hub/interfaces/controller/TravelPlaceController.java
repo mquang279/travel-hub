@@ -17,6 +17,7 @@ import edu.uet.travel_hub.application.dto.request.UpsertTravelPlaceReviewRequest
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceDetailResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceListItemResponse;
+import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewListSummaryResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewResponse;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.usecases.TravelPlaceService;
@@ -77,8 +78,15 @@ public class TravelPlaceController {
     public ResponseEntity<PaginationResponse<TravelPlaceReviewResponse>> getReviews(
             @PathVariable Long placeId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        return ResponseEntity.ok(this.travelPlaceService.getReviews(placeId, page, pageSize));
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(defaultValue = "NEWEST") String sort) {
+        return ResponseEntity.ok(this.travelPlaceService.getReviews(placeId, page, pageSize, rating, sort));
+    }
+
+    @GetMapping("/{placeId}/reviews/summary")
+    public ResponseEntity<TravelPlaceReviewListSummaryResponse> getReviewSummary(@PathVariable Long placeId) {
+        return ResponseEntity.ok(this.travelPlaceService.getReviewListSummary(placeId));
     }
 
     @PutMapping("/{placeId}/review")
