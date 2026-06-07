@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +22,11 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "trip_activities")
+@Table(
+        name = "trip_activities",
+        indexes = {
+                @Index(name = "idx_trip_activities_trip_day_id_order_index_id", columnList = "trip_day_id, order_index, id")
+        })
 @Getter
 @Setter
 @ToString(exclude = {"tripDay"})

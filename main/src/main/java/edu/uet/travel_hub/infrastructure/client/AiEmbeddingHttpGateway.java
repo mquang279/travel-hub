@@ -1,9 +1,11 @@
 package edu.uet.travel_hub.infrastructure.client;
 
 import java.util.List;
+import java.time.Duration;
 
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import edu.uet.travel_hub.application.port.out.AiEmbeddingGateway;
@@ -15,9 +17,13 @@ import edu.uet.travel_hub.domain.model.TravelPlaceRecommendationQuery;
 @Component
 public class AiEmbeddingHttpGateway implements AiEmbeddingGateway {
     private final WebClient aiWebClient;
+    private final Duration requestTimeout;
 
-    public AiEmbeddingHttpGateway(WebClient aiWebClient) {
+    public AiEmbeddingHttpGateway(
+            WebClient aiWebClient,
+            @Value("${ai.request-timeout-seconds:60}") long requestTimeoutSeconds) {
         this.aiWebClient = aiWebClient;
+        this.requestTimeout = Duration.ofSeconds(requestTimeoutSeconds);
     }
 
     @Override
@@ -37,7 +43,7 @@ public class AiEmbeddingHttpGateway implements AiEmbeddingGateway {
                         model.lon()))
                 .retrieve()
                 .toBodilessEntity()
-                .block();
+                .block(this.requestTimeout);
     }
 
     @Override
@@ -52,7 +58,7 @@ public class AiEmbeddingHttpGateway implements AiEmbeddingGateway {
                         query.offset()))
                 .retrieve()
                 .bodyToMono(RecommendationResponse.class)
-                .block();
+                .block(this.requestTimeout);
 
         if (response == null || response.items() == null) {
             return List.of();

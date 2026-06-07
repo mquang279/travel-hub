@@ -1,5 +1,6 @@
 package edu.uet.travel_hub.infrastructure.client;
 
+import java.time.Duration;
 import java.util.List;
 
 import org.springframework.http.MediaType;
@@ -15,9 +16,13 @@ import edu.uet.travel_hub.application.dto.response.TravelAssistantPlaceReference
 @Component
 public class AiTravelAssistantHttpGateway {
     private final WebClient aiWebClient;
+    private final Duration requestTimeout;
 
-    public AiTravelAssistantHttpGateway(WebClient aiWebClient) {
+    public AiTravelAssistantHttpGateway(
+            WebClient aiWebClient,
+            @org.springframework.beans.factory.annotation.Value("${ai.request-timeout-seconds:60}") long requestTimeoutSeconds) {
         this.aiWebClient = aiWebClient;
+        this.requestTimeout = Duration.ofSeconds(requestTimeoutSeconds);
     }
 
     public TravelAssistantChatResponse chat(TravelAssistantChatRequest request) {
@@ -27,7 +32,7 @@ public class AiTravelAssistantHttpGateway {
                 .bodyValue(request)
                 .retrieve()
                 .bodyToMono(AiTravelAssistantResponse.class)
-                .block();
+                .block(this.requestTimeout);
 
         if (response == null) {
             return new TravelAssistantChatResponse("", List.of());
