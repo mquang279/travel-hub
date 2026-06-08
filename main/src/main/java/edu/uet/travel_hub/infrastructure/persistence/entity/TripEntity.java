@@ -125,7 +125,9 @@ public class TripEntity {
     @PreUpdate
     public void onUpdate() {
         this.updatedAt = Instant.now();
-        this.status = TripStatus.fromDates(this.startDate, this.endDate);
+        if (this.status != TripStatus.COMPLETED) {
+            this.status = TripStatus.fromDates(this.startDate, this.endDate);
+        }
     }
 
     public UserEntity getOwner() {

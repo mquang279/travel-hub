@@ -490,6 +490,9 @@ public class TripService {
     }
 
     private TripStatus resolveDashboardStatus(TripEntity trip) {
+        if (trip.getStatus() == TripStatus.COMPLETED) {
+            return TripStatus.COMPLETED;
+        }
         return TripStatus.fromDates(trip.getStartDate(), trip.getEndDate());
     }
 }

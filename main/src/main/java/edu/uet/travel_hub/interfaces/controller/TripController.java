@@ -16,22 +16,30 @@ import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
 import edu.uet.travel_hub.application.dto.request.JoinTripRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
+import edu.uet.travel_hub.application.dto.response.SettlementResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailResponse;
 import edu.uet.travel_hub.application.dto.response.TripInfoResponse;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
+import edu.uet.travel_hub.application.usecases.SettlementService;
 import edu.uet.travel_hub.application.usecases.TripService;
 import jakarta.validation.Valid;
+import java.util.List;
 
 @RestController
 @Validated
 @RequestMapping("/api")
 public class TripController {
     private final TripService tripService;
+    private final SettlementService settlementService;
     private final CurrentUserProvider currentUserProvider;
 
-    public TripController(TripService tripService, CurrentUserProvider currentUserProvider) {
+    public TripController(
+            TripService tripService,
+            SettlementService settlementService,
+            CurrentUserProvider currentUserProvider) {
         this.tripService = tripService;
+        this.settlementService = settlementService;
         this.currentUserProvider = currentUserProvider;
     }
 
@@ -82,5 +90,10 @@ public class TripController {
     @PostMapping("/trips/{tripId}/invite-code/regenerate")
     public ResponseEntity<edu.uet.travel_hub.application.dto.response.TripInviteCodeResponse> regenerateInviteCode(@PathVariable Long tripId) {
         return ResponseEntity.ok(this.tripService.regenerateInviteCode(tripId, this.currentUserProvider.getCurrentUserId()));
+    }
+
+    @PostMapping("/trips/{tripId}/finish")
+    public ResponseEntity<List<SettlementResponse>> finishTrip(@PathVariable Long tripId) {
+        return ResponseEntity.ok(this.settlementService.finishTrip(tripId, this.currentUserProvider.getCurrentUserId()));
     }
 }
