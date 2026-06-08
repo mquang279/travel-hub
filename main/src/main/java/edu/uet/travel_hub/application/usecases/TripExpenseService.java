@@ -115,7 +115,10 @@ public class TripExpenseService {
                         displayName(expense.getPaidBy()),
                         expense.getAmount(),
                         expense.getExpenseDate(),
-                        this.fileStorage.resolvePublicUrl(expense.getProofImageUrl())))
+                        this.fileStorage.resolvePublicUrl(expense.getProofImageUrl()),
+                        expense.getSplits().stream()
+                                .map(split -> split.getUser().getId())
+                                .toList()))
                 .toList();
 
         return new TripExpenseResponse(
@@ -156,7 +159,8 @@ public class TripExpenseService {
                 displayName(paidBy),
                 saved.getAmount(),
                 saved.getExpenseDate(),
-                this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()));
+                this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()),
+                splitUserIds);
     }
 
     @Transactional
@@ -196,7 +200,8 @@ public class TripExpenseService {
                 displayName(paidBy),
                 saved.getAmount(),
                 saved.getExpenseDate(),
-                this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()));
+                this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()),
+                splitUserIds);
     }
 
     @Transactional
