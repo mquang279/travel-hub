@@ -69,6 +69,9 @@ public class TripExpenseEntity {
     @Column(name = "raw_ocr_text", columnDefinition = "TEXT")
     private String rawOcrText;
 
+    @Column(name = "proof_image_url", length = 1000)
+    private String proofImageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ExpenseSource source;

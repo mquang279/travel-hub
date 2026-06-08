@@ -12,5 +12,6 @@ public record TripExpenseTransactionResponse(
         Long paidByUserId,
         String paidByName,
         BigDecimal amount,
-        Instant date) {
+        Instant date,
+        String proofImageUrl) {
 }

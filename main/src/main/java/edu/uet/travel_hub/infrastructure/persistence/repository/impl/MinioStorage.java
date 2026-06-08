@@ -48,7 +48,7 @@ public class MinioStorage implements FileStorage {
                                 .region(minioConfig.getRegion())
                                 .expiry(5, TimeUnit.MINUTES)
                                 .build());
-                presignedUrls.add(new UploadModel(objectName, url));
+                presignedUrls.add(new UploadModel(objectName, url, resolvePublicUrl(objectName)));
             } catch (Exception e) {
                 throw new RuntimeException("Error when generating presigned image URL", e);
             }
@@ -71,14 +71,26 @@ public class MinioStorage implements FileStorage {
                             .stream(file.getInputStream(), file.getSize(), -1)
                             .contentType(file.getContentType())
                             .build());
-            String publicUrl = minioConfig.getPublicUrl();
-            String imageUrl = publicUrl.endsWith("/")
-                    ? publicUrl + minioConfig.getBucketName() + "/" + objectName
-                    : publicUrl + "/" + minioConfig.getBucketName() + "/" + objectName;
+            String imageUrl = resolvePublicUrl(objectName);
             return new UploadModel(objectName, imageUrl);
         } catch (Exception e) {
             throw new RuntimeException("Failed to upload payment proof", e);
         }
+    }
+
+    @Override
+    public String resolvePublicUrl(String objectNameOrUrl) {
+        if (objectNameOrUrl == null || objectNameOrUrl.isBlank()) {
+            return null;
+        }
+        if (objectNameOrUrl.startsWith("http://") || objectNameOrUrl.startsWith("https://")) {
+            return objectNameOrUrl;
+        }
+        String publicUrl = minioConfig.getPublicUrl();
+        String base = publicUrl.endsWith("/")
+                ? publicUrl + minioConfig.getBucketName()
+                : publicUrl + "/" + minioConfig.getBucketName();
+        return base + "/" + objectNameOrUrl;
     }
 
     private String extensionOf(String filename) {

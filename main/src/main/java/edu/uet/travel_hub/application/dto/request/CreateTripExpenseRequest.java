@@ -20,5 +20,6 @@ public record CreateTripExpenseRequest(
         String expenseDate,
         ExpenseSource source,
         String rawOcrText,
+        String proofImageUrl,
         String splitType) {
 }

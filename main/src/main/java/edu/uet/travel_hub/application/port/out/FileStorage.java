@@ -9,4 +9,6 @@ public interface FileStorage {
     List<UploadModel> getPresignedUrl(String folderName, Long userId, int totalFiles);
 
     UploadModel upload(String folderName, Long userId, MultipartFile file);
+
+    String resolvePublicUrl(String objectNameOrUrl);
 }

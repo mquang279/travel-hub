@@ -20,6 +20,7 @@ import edu.uet.travel_hub.application.dto.response.TripExpenseSummaryResponse;
 import edu.uet.travel_hub.application.dto.response.TripExpenseTransactionResponse;
 import edu.uet.travel_hub.application.exception.ForbiddenTripActionException;
 import edu.uet.travel_hub.application.exception.ResourceNotFoundException;
+import edu.uet.travel_hub.application.port.out.FileStorage;
 import edu.uet.travel_hub.domain.enums.ExpenseSource;
 import edu.uet.travel_hub.domain.enums.TripMemberStatus;
 import edu.uet.travel_hub.domain.enums.TripStatus;
@@ -40,6 +41,7 @@ public class TripExpenseService {
     private final TripActivityLogService tripActivityLogService;
     private final ExpenseSplitJpaRepository expenseSplitJpaRepository;
     private final ExpenseSplitCalculator expenseSplitCalculator;
+    private final FileStorage fileStorage;
 
     public TripExpenseService(
             TripService tripService,
@@ -47,13 +49,15 @@ public class TripExpenseService {
             TripMemberJpaRepository tripMemberJpaRepository,
             TripActivityLogService tripActivityLogService,
             ExpenseSplitJpaRepository expenseSplitJpaRepository,
-            ExpenseSplitCalculator expenseSplitCalculator) {
+            ExpenseSplitCalculator expenseSplitCalculator,
+            FileStorage fileStorage) {
         this.tripService = tripService;
         this.tripExpenseJpaRepository = tripExpenseJpaRepository;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
         this.tripActivityLogService = tripActivityLogService;
         this.expenseSplitJpaRepository = expenseSplitJpaRepository;
         this.expenseSplitCalculator = expenseSplitCalculator;
+        this.fileStorage = fileStorage;
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +114,8 @@ public class TripExpenseService {
                         expense.getPaidBy().getId(),
                         displayName(expense.getPaidBy()),
                         expense.getAmount(),
-                        expense.getExpenseDate()))
+                        expense.getExpenseDate(),
+                        this.fileStorage.resolvePublicUrl(expense.getProofImageUrl())))
                 .toList();
 
         return new TripExpenseResponse(
@@ -137,6 +142,7 @@ public class TripExpenseService {
                 .note(normalizeOptional(request.note()))
                 .source(resolveSource(request.source()))
                 .rawOcrText(normalizeOptional(request.rawOcrText()))
+                .proofImageUrl(normalizeOptional(request.proofImageUrl()))
                 .expenseDate(resolveExpenseDate(request.expenseDate()))
                 .build());
         replaceSplits(saved, splitUserIds, amount);
@@ -149,7 +155,8 @@ public class TripExpenseService {
                 paidBy.getId(),
                 displayName(paidBy),
                 saved.getAmount(),
-                saved.getExpenseDate());
+                saved.getExpenseDate(),
+                this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()));
     }
 
     @Transactional
@@ -175,6 +182,7 @@ public class TripExpenseService {
         expense.setNote(normalizeOptional(request.note()));
         expense.setSource(resolveSource(request.source()));
         expense.setRawOcrText(normalizeOptional(request.rawOcrText()));
+        expense.setProofImageUrl(normalizeOptional(request.proofImageUrl()));
         expense.setExpenseDate(resolveExpenseDate(request.expenseDate()));
         TripExpenseEntity saved = this.tripExpenseJpaRepository.save(expense);
         replaceSplits(saved, splitUserIds, amount);
@@ -187,7 +195,8 @@ public class TripExpenseService {
                 paidBy.getId(),
                 displayName(paidBy),
                 saved.getAmount(),
-                saved.getExpenseDate());
+                saved.getExpenseDate(),
+                this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()));
     }
 
     @Transactional
