@@ -59,14 +59,11 @@ class TravelAssistantService:
     ) -> TravelAssistantChatResponse:
         if self.models:
             try:
-                return await asyncio.wait_for(
-                    self._chat_with_agent(payload=payload, pool=pool),
-                    timeout=15,
-                )
+                return await self._chat_with_agent(payload=payload, pool=pool)
             except Exception as exc:
                 raise HTTPException(
                     status_code=502,
-                    detail="AI chat request failed",
+                    detail=f"AI chat request failed: {exc}",
                 ) from exc
 
         raise HTTPException(
@@ -81,13 +78,15 @@ class TravelAssistantService:
     ) -> AsyncGenerator[str, None]:
         if self.models:
             try:
-                async for chunk in self._chat_with_agent_stream(payload=payload, pool=pool):
+                async for chunk in self._chat_with_agent_stream(
+                    payload=payload, pool=pool
+                ):
                     yield chunk
                 return
             except Exception as exc:
                 raise HTTPException(
                     status_code=502,
-                    detail="AI chat request failed",
+                    detail=f"AI chat request failed: {exc}",
                 ) from exc
 
         raise HTTPException(
@@ -167,7 +166,9 @@ class TravelAssistantService:
 
     def _build_tools(self, pool: Any):
         @tool
-        async def search_travel_places(keyword: str, province: str = "", limit: int = 5) -> dict[str, Any]:
+        async def search_travel_places(
+            keyword: str, province: str = "", limit: int = 5
+        ) -> dict[str, Any]:
             """Search Travel Hub places in Vietnamese, with or without diacritics."""
             return await self._search_places(
                 pool=pool,
@@ -179,7 +180,9 @@ class TravelAssistantService:
         @tool
         async def get_place_reviews(place_id: int, limit: int = 5) -> dict[str, Any]:
             """Get recent reviews, rating summary, and public reviewer profiles for a place."""
-            return await self._get_place_reviews(pool=pool, place_id=place_id, limit=limit)
+            return await self._get_place_reviews(
+                pool=pool, place_id=place_id, limit=limit
+            )
 
         @tool
         async def lookup_place_detail(place_id: int) -> dict[str, Any]:
@@ -187,7 +190,9 @@ class TravelAssistantService:
             return await self._lookup_place_detail(pool=pool, place_id=place_id)
 
         @tool
-        async def find_reviewer_reviews(user_query: str, limit: int = 5) -> dict[str, Any]:
+        async def find_reviewer_reviews(
+            user_query: str, limit: int = 5
+        ) -> dict[str, Any]:
             """Find a user by name or username and return their public profile and place reviews."""
             return await self._find_reviewer_reviews(
                 pool=pool,
@@ -292,7 +297,9 @@ class TravelAssistantService:
             )
         return [dict(row) for row in rows]
 
-    async def _get_place_reviews(self, pool: Any, place_id: int, limit: int) -> dict[str, Any]:
+    async def _get_place_reviews(
+        self, pool: Any, place_id: int, limit: int
+    ) -> dict[str, Any]:
         normalized_limit = min(max(limit, 1), 10)
         async with pool.acquire() as conn:
             place = await conn.fetchrow(
@@ -454,7 +461,11 @@ class TravelAssistantService:
                     return content
                 if isinstance(content, list):
                     return "".join(
-                        str(part.get("text", "")) if isinstance(part, dict) else str(part)
+                        (
+                            str(part.get("text", ""))
+                            if isinstance(part, dict)
+                            else str(part)
+                        )
                         for part in content
                     )
         return str(result)
