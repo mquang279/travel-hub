@@ -1,6 +1,7 @@
 package edu.uet.travel_hub.application.usecases;
 
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Service;
 
 import edu.uet.travel_hub.application.dto.request.RefreshTokenRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;
@@ -9,6 +10,7 @@ import edu.uet.travel_hub.application.port.out.TokenProvider;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.UserModel;
 
+@Service
 public class RefreshTokenService {
     private final UserRepository userRepository;
     private final TokenProvider tokenProvider;

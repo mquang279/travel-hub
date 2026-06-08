@@ -3,18 +3,23 @@ package edu.uet.travel_hub.infrastructure.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
 import edu.uet.travel_hub.infrastructure.security.FirebaseAuthenticationFilter;
+import edu.uet.travel_hub.infrastructure.security.UserDetailCustom;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Configuration
 public class SecurityConfig {
@@ -34,12 +39,31 @@ public class SecurityConfig {
     }
 
     @Bean
+    public UserDetailsService userDetailsService(UserJpaRepository userJpaRepository) {
+        return new UserDetailCustom(userJpaRepository);
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            HttpSecurity http,
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder) throws Exception {
+        AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
+        builder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
+        return builder.build();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(c -> c.disable())
                 .cors(Customizer.withDefaults()) // Enable CORS
                 .authorizeHttpRequests(
                         (authz) -> authz
                                 .requestMatchers("/api/auth/session").permitAll()
+                                .requestMatchers("/api/auth/login").permitAll()
+                                .requestMatchers("/api/auth/register").permitAll()
+                                .requestMatchers("/api/auth/refresh").permitAll()
+                                .requestMatchers("/uploads/**").permitAll()
                                 .requestMatchers("/api/auth/logout").authenticated()
                                 .requestMatchers("/api/users/me/dashboard").authenticated()
                                 .requestMatchers("/api/trips/**").authenticated()
