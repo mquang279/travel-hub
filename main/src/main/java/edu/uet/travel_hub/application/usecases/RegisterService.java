@@ -12,7 +12,9 @@ import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.domain.exception.EmailAlreadyExistsException;
 import edu.uet.travel_hub.domain.exception.UsernameAlreadyExistsException;
 import edu.uet.travel_hub.domain.model.UserModel;
+import org.springframework.stereotype.Service;
 
+@Service
 public class RegisterService implements RegisterUseCase {
     private final UserRepository userRepository;
     private final PasswordEncoder encoder;

@@ -33,11 +33,6 @@ public class SecurityCurrentUserProvider implements CurrentUserProvider {
             return Optional.empty();
         }
 
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof FirebaseAuthenticatedUser user) {
-            return Optional.of(user.id());
-        }
-
         String email = authentication.getName();
         return userJpaRepository.findByEmail(email)
                 .map(UserEntity::getId);
