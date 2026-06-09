@@ -1,7 +1,5 @@
 package edu.uet.travel_hub.infrastructure.config;
 
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,24 +12,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-
-import com.nimbusds.jose.util.Base64;
 
 import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
 import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationFilter;
-import edu.uet.travel_hub.infrastructure.security.JwtTokenProvider;
 import edu.uet.travel_hub.infrastructure.security.UserDetailCustom;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
@@ -42,9 +28,6 @@ public class SecurityConfig {
     public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
     }
-
-    @Value("${secret.key}")
-    private String secretKey;
 
     // Define password encoder algorithm
     @Bean
@@ -69,18 +52,6 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
-    }
-
-    @Bean
-    public JwtEncoder jwtEncoder() {
-        return new NimbusJwtEncoder(new ImmutableSecret<>(jwtSecretKey()));
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withSecretKey(jwtSecretKey())
-                .macAlgorithm(JwtTokenProvider.JWT_ALGORITHM)
-                .build();
     }
 
     @Bean
@@ -127,30 +98,6 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
-    }
-
-    private SecretKey jwtSecretKey() {
-        byte[] keyBytes = decodeBase64OrRaw(secretKey);
-        if (keyBytes.length < 32) {
-            keyBytes = sha256(secretKey);
-        }
-        return new SecretKeySpec(keyBytes, JwtTokenProvider.JWT_ALGORITHM.getName());
-    }
-
-    private byte[] decodeBase64OrRaw(String value) {
-        try {
-            return Base64.from(value).decode();
-        } catch (Exception ignored) {
-            return value.getBytes(StandardCharsets.UTF_8);
-        }
-    }
-
-    private byte[] sha256(String value) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception exception) {
-            throw new IllegalStateException("Unable to derive JWT secret key", exception);
-        }
     }
 
 }
