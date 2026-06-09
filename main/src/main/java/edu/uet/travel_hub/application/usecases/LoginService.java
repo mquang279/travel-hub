@@ -1,5 +1,7 @@
 package edu.uet.travel_hub.application.usecases;
 
+import org.springframework.stereotype.Service;
+
 import edu.uet.travel_hub.application.dto.request.LoginRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;
 import edu.uet.travel_hub.application.port.in.LoginUseCase;

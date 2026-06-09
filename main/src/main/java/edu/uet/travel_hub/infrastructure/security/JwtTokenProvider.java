@@ -16,12 +16,12 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.stereotype.Component;
-
-import com.nimbusds.jose.util.Base64;
 
 import edu.uet.travel_hub.application.port.out.TokenProvider;
 import edu.uet.travel_hub.domain.model.UserModel;
+import org.springframework.stereotype.Component;
+
+import com.nimbusds.jose.util.Base64;
 
 @Component
 public class JwtTokenProvider implements TokenProvider {
