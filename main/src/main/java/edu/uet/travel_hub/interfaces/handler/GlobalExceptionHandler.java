@@ -39,6 +39,7 @@ public class GlobalExceptionHandler {
 
     private static final Map<String, String> MESSAGE_TRANSLATIONS = Map.ofEntries(
             Map.entry("Avatar file must not be empty", "Tệp ảnh đại diện không được để trống."),
+            Map.entry("Bank account is required to join trip", "Bạn cần cập nhật ngân hàng và số tài khoản trước khi tham gia chuyến đi."),
             Map.entry("Cannot access preferences of another user", "Bạn không có quyền truy cập tùy chọn của người dùng khác."),
             Map.entry("Cannot follow yourself", "Bạn không thể tự theo dõi chính mình."),
             Map.entry("Current leader not found", "Không tìm thấy trưởng nhóm hiện tại."),
