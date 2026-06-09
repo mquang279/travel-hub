@@ -1,36 +1,50 @@
 package edu.uet.travel_hub.infrastructure.config;
 
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import com.nimbusds.jose.util.Base64;
+
 import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
-import edu.uet.travel_hub.infrastructure.security.FirebaseAuthenticationFilter;
+import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationFilter;
+import edu.uet.travel_hub.infrastructure.security.JwtTokenProvider;
 import edu.uet.travel_hub.infrastructure.security.UserDetailCustom;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Configuration
 public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final FirebaseAuthenticationFilter firebaseAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            FirebaseAuthenticationFilter firebaseAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
-        this.firebaseAuthenticationFilter = firebaseAuthenticationFilter;
     }
+
+    @Value("${secret.key}")
+    private String secretKey;
 
     // Define password encoder algorithm
     @Bean
@@ -39,31 +53,47 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(UserJpaRepository userJpaRepository) {
+    public UserDetailCustom userDetailsService(UserJpaRepository userJpaRepository) {
         return new UserDetailCustom(userJpaRepository);
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(
-            HttpSecurity http,
-            UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder) throws Exception {
-        AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        builder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
-        return builder.build();
+    public DaoAuthenticationProvider authenticationProvider(
+            UserDetailCustom userDetailsService,
+            PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
+
+    @Bean
+    public JwtEncoder jwtEncoder() {
+        return new NimbusJwtEncoder(new ImmutableSecret<>(jwtSecretKey()));
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return NimbusJwtDecoder.withSecretKey(jwtSecretKey())
+                .macAlgorithm(JwtTokenProvider.JWT_ALGORITHM)
+                .build();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(
+            HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http.csrf(c -> c.disable())
                 .cors(Customizer.withDefaults()) // Enable CORS
                 .authorizeHttpRequests(
                         (authz) -> authz
-                                .requestMatchers("/api/auth/session").permitAll()
-                                .requestMatchers("/api/auth/login").permitAll()
                                 .requestMatchers("/api/auth/register").permitAll()
+                                .requestMatchers("/api/auth/login").permitAll()
                                 .requestMatchers("/api/auth/refresh").permitAll()
-                                .requestMatchers("/uploads/**").permitAll()
                                 .requestMatchers("/api/auth/logout").authenticated()
                                 .requestMatchers("/api/users/me/dashboard").authenticated()
                                 .requestMatchers("/api/trips/**").authenticated()
@@ -80,7 +110,8 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.GET, "/api/places/recommendations").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/places/featured").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/places", "/api/places/*",
-                                        "/api/places/*/reviews", "/api/places/*/reviews/summary").permitAll()
+                                        "/api/places/*/reviews", "/api/places/*/reviews/summary")
+                                .permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/admin/places")
                                 .hasAuthority(Role.ADMIN.getDescription())
                                 .requestMatchers(HttpMethod.GET, "/api/admin/places/*")
@@ -91,11 +122,35 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.GET, "/api/users/me/place-view-history").authenticated()
                                 .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-                .addFilterBefore(firebaseAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
+    }
+
+    private SecretKey jwtSecretKey() {
+        byte[] keyBytes = decodeBase64OrRaw(secretKey);
+        if (keyBytes.length < 32) {
+            keyBytes = sha256(secretKey);
+        }
+        return new SecretKeySpec(keyBytes, JwtTokenProvider.JWT_ALGORITHM.getName());
+    }
+
+    private byte[] decodeBase64OrRaw(String value) {
+        try {
+            return Base64.from(value).decode();
+        } catch (Exception ignored) {
+            return value.getBytes(StandardCharsets.UTF_8);
+        }
+    }
+
+    private byte[] sha256(String value) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to derive JWT secret key", exception);
+        }
     }
 
 }

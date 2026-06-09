@@ -2,9 +2,12 @@ package edu.uet.travel_hub.infrastructure.security;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -17,6 +20,8 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import edu.uet.travel_hub.application.port.out.TokenProvider;
 import edu.uet.travel_hub.domain.model.UserModel;
 import org.springframework.stereotype.Component;
+
+import com.nimbusds.jose.util.Base64;
 
 @Component
 public class JwtTokenProvider implements TokenProvider {
@@ -98,7 +103,27 @@ public class JwtTokenProvider implements TokenProvider {
     }
 
     private SecretKey getSecretKey() {
-        return JwtSecretKeyFactory.create(secretKey);
+        byte[] keyBytes = runCatchingBase64(secretKey);
+        if (keyBytes.length < 32) {
+            keyBytes = sha256(secretKey);
+        }
+        return new SecretKeySpec(keyBytes, JWT_ALGORITHM.getName());
+    }
+
+    private byte[] runCatchingBase64(String value) {
+        try {
+            return Base64.from(value).decode();
+        } catch (Exception ignored) {
+            return value.getBytes(StandardCharsets.UTF_8);
+        }
+    }
+
+    private byte[] sha256(String value) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to derive JWT secret key", exception);
+        }
     }
 
 }
