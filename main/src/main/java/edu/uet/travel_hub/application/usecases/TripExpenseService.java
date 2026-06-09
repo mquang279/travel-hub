@@ -1,10 +1,12 @@
 package edu.uet.travel_hub.application.usecases;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -16,6 +18,7 @@ import edu.uet.travel_hub.application.dto.request.CreateTripExpenseRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripExpenseRequest;
 import edu.uet.travel_hub.application.dto.response.TripExpenseContributionResponse;
 import edu.uet.travel_hub.application.dto.response.TripExpenseResponse;
+import edu.uet.travel_hub.application.dto.response.TripExpenseSplitShareResponse;
 import edu.uet.travel_hub.application.dto.response.TripExpenseSummaryResponse;
 import edu.uet.travel_hub.application.dto.response.TripExpenseTransactionResponse;
 import edu.uet.travel_hub.application.exception.ForbiddenTripActionException;
@@ -86,7 +89,12 @@ public class TripExpenseService {
         }
 
         BigDecimal myPaid = contributions.getOrDefault(currentUserId, BigDecimal.ZERO);
-        BigDecimal myBalance = myPaid.subtract(perPersonAmount);
+        BigDecimal myOwed = expenses.stream()
+                .flatMap(expense -> expense.getSplits().stream())
+                .filter(split -> split.getUser().getId().equals(currentUserId))
+                .map(ExpenseSplitEntity::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal myBalance = myPaid.subtract(myOwed);
 
         List<TripExpenseContributionResponse> contributionResponses = contributions.entrySet().stream()
                 .map(e -> {
@@ -116,9 +124,11 @@ public class TripExpenseService {
                         expense.getAmount(),
                         expense.getExpenseDate(),
                         this.fileStorage.resolvePublicUrl(expense.getProofImageUrl()),
+                        resolveSplitType(expense.getSplitType()),
                         expense.getSplits().stream()
                                 .map(split -> split.getUser().getId())
-                                .toList()))
+                                .toList(),
+                        toSplitShareResponses(expense)))
                 .toList();
 
         return new TripExpenseResponse(
@@ -134,7 +144,13 @@ public class TripExpenseService {
         UserEntity paidBy = this.tripService.findUser(request.paidByUserId());
         requireActiveMember(tripId, request.paidByUserId(), "Paid-by user must be an active member");
         BigDecimal amount = normalizeAmount(request.totalAmount(), request.amount());
-        List<Long> splitUserIds = normalizeSplitUserIds(tripId, request.splitUserIds());
+        Map<Long, BigDecimal> splitAmounts = normalizeSplitAmounts(
+                tripId,
+                amount,
+                request.splitType(),
+                request.splitUserIds(),
+                request.splitShares());
+        String splitType = resolveSplitType(request.splitType());
 
         TripExpenseEntity saved = this.tripExpenseJpaRepository.save(TripExpenseEntity.builder()
                 .trip(trip)
@@ -146,9 +162,10 @@ public class TripExpenseService {
                 .source(resolveSource(request.source()))
                 .rawOcrText(normalizeOptional(request.rawOcrText()))
                 .proofImageUrl(normalizeOptional(request.proofImageUrl()))
+                .splitType(splitType)
                 .expenseDate(resolveExpenseDate(request.expenseDate()))
                 .build());
-        replaceSplits(saved, splitUserIds, amount);
+        replaceSplits(saved, splitAmounts);
 
         this.tripActivityLogService.log(trip, this.tripService.findUser(currentUserId), "ADD_EXPENSE", "EXPENSE", saved.getId(), "expense added");
         return new TripExpenseTransactionResponse(
@@ -160,7 +177,9 @@ public class TripExpenseService {
                 saved.getAmount(),
                 saved.getExpenseDate(),
                 this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()),
-                splitUserIds);
+                splitType,
+                new ArrayList<>(splitAmounts.keySet()),
+                toSplitShareResponses(splitAmounts));
     }
 
     @Transactional
@@ -177,7 +196,13 @@ public class TripExpenseService {
         UserEntity paidBy = this.tripService.findUser(request.paidByUserId());
         requireActiveMember(tripId, request.paidByUserId(), "Paid-by user must be an active member");
         BigDecimal amount = normalizeAmount(request.totalAmount(), request.amount());
-        List<Long> splitUserIds = normalizeSplitUserIds(tripId, request.splitUserIds());
+        Map<Long, BigDecimal> splitAmounts = normalizeSplitAmounts(
+                tripId,
+                amount,
+                request.splitType(),
+                request.splitUserIds(),
+                request.splitShares());
+        String splitType = resolveSplitType(request.splitType());
 
         expense.setTitle(request.title().trim());
         expense.setCategory(request.category());
@@ -187,9 +212,10 @@ public class TripExpenseService {
         expense.setSource(resolveSource(request.source()));
         expense.setRawOcrText(normalizeOptional(request.rawOcrText()));
         expense.setProofImageUrl(normalizeOptional(request.proofImageUrl()));
+        expense.setSplitType(splitType);
         expense.setExpenseDate(resolveExpenseDate(request.expenseDate()));
         TripExpenseEntity saved = this.tripExpenseJpaRepository.save(expense);
-        replaceSplits(saved, splitUserIds, amount);
+        replaceSplits(saved, splitAmounts);
 
         this.tripActivityLogService.log(saved.getTrip(), this.tripService.findUser(currentUserId), "UPDATE_EXPENSE", "EXPENSE", saved.getId(), "expense updated");
         return new TripExpenseTransactionResponse(
@@ -201,7 +227,9 @@ public class TripExpenseService {
                 saved.getAmount(),
                 saved.getExpenseDate(),
                 this.fileStorage.resolvePublicUrl(saved.getProofImageUrl()),
-                splitUserIds);
+                splitType,
+                new ArrayList<>(splitAmounts.keySet()),
+                toSplitShareResponses(splitAmounts));
     }
 
     @Transactional
@@ -245,15 +273,53 @@ public class TripExpenseService {
         return splitUserIds.stream().distinct().toList();
     }
 
+    private Map<Long, BigDecimal> normalizeSplitAmounts(
+            Long tripId,
+            BigDecimal amount,
+            String splitType,
+            List<Long> requestedSplitUserIds,
+            List<edu.uet.travel_hub.application.dto.request.TripExpenseSplitShareRequest> requestedSplitShares) {
+        if (isCustomSplit(splitType)) {
+            return normalizeCustomSplitAmounts(tripId, amount, requestedSplitShares);
+        }
+        List<Long> splitUserIds = normalizeSplitUserIds(tripId, requestedSplitUserIds);
+        return this.expenseSplitCalculator.splitEqual(normalizeMoney(amount), splitUserIds);
+    }
+
+    private Map<Long, BigDecimal> normalizeCustomSplitAmounts(
+            Long tripId,
+            BigDecimal amount,
+            List<edu.uet.travel_hub.application.dto.request.TripExpenseSplitShareRequest> requestedSplitShares) {
+        if (requestedSplitShares == null || requestedSplitShares.isEmpty()) {
+            throw new IllegalArgumentException("Split shares must not be empty for custom split");
+        }
+        Map<Long, BigDecimal> splitAmounts = new LinkedHashMap<>();
+        for (var share : requestedSplitShares) {
+            if (share == null || share.userId() == null) {
+                throw new IllegalArgumentException("Split share user must not be empty");
+            }
+            requireActiveMember(tripId, share.userId(), "Split user must be an active member");
+            BigDecimal shareAmount = normalizeMoney(share.amount());
+            if (shareAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Split share amount must be greater than zero");
+            }
+            splitAmounts.merge(share.userId(), shareAmount, BigDecimal::add);
+        }
+        BigDecimal totalSplitAmount = splitAmounts.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalSplitAmount.compareTo(normalizeMoney(amount)) != 0) {
+            throw new IllegalArgumentException("Split share amounts must equal expense amount");
+        }
+        return splitAmounts;
+    }
+
     private TripMemberEntity requireActiveMember(Long tripId, Long userId, String message) {
         return this.tripMemberJpaRepository.findByTripIdAndUserId(tripId, userId)
                 .filter(member -> member.getStatus() == TripMemberStatus.ACTIVE)
                 .orElseThrow(() -> new ForbiddenTripActionException(message));
     }
 
-    private void replaceSplits(TripExpenseEntity expense, List<Long> splitUserIds, BigDecimal amount) {
+    private void replaceSplits(TripExpenseEntity expense, Map<Long, BigDecimal> splitAmounts) {
         this.expenseSplitJpaRepository.deleteByExpenseId(expense.getId());
-        Map<Long, BigDecimal> splitAmounts = this.expenseSplitCalculator.splitEqual(amount, splitUserIds);
         List<ExpenseSplitEntity> splits = new ArrayList<>();
         splitAmounts.forEach((userId, splitAmount) -> splits.add(ExpenseSplitEntity.builder()
                 .expense(expense)
@@ -261,6 +327,36 @@ public class TripExpenseService {
                 .amount(splitAmount)
                 .build()));
         this.expenseSplitJpaRepository.saveAll(splits);
+    }
+
+    private List<TripExpenseSplitShareResponse> toSplitShareResponses(TripExpenseEntity expense) {
+        return expense.getSplits().stream()
+                .map(split -> new TripExpenseSplitShareResponse(split.getUser().getId(), split.getAmount()))
+                .toList();
+    }
+
+    private List<TripExpenseSplitShareResponse> toSplitShareResponses(Map<Long, BigDecimal> splitAmounts) {
+        return splitAmounts.entrySet().stream()
+                .map(entry -> new TripExpenseSplitShareResponse(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    private BigDecimal normalizeMoney(BigDecimal value) {
+        if (value == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isCustomSplit(String splitType) {
+        return splitType != null
+                && (splitType.equalsIgnoreCase("CUSTOM")
+                || splitType.equalsIgnoreCase("SPECIFIC")
+                || splitType.equalsIgnoreCase("AMOUNT"));
+    }
+
+    private String resolveSplitType(String splitType) {
+        return isCustomSplit(splitType) ? "CUSTOM" : "EQUAL";
     }
 
     private void requireTripNotCompleted(TripEntity trip) {

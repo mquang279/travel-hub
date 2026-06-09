@@ -21,5 +21,6 @@ public record UpdateTripExpenseRequest(
         ExpenseSource source,
         String rawOcrText,
         String proofImageUrl,
+        List<TripExpenseSplitShareRequest> splitShares,
         String splitType) {
 }

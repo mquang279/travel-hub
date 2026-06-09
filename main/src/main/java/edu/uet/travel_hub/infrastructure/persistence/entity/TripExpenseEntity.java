@@ -72,6 +72,10 @@ public class TripExpenseEntity {
     @Column(name = "proof_image_url", length = 1000)
     private String proofImageUrl;
 
+    @Builder.Default
+    @Column(name = "split_type", nullable = false, length = 20, columnDefinition = "VARCHAR(20) DEFAULT 'EQUAL'")
+    private String splitType = "EQUAL";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ExpenseSource source;
@@ -100,10 +104,16 @@ public class TripExpenseEntity {
         if (this.source == null) {
             this.source = ExpenseSource.MANUAL;
         }
+        if (this.splitType == null || this.splitType.isBlank()) {
+            this.splitType = "EQUAL";
+        }
     }
 
     @PreUpdate
     public void handleBeforeUpdate() {
         this.updatedAt = Instant.now();
+        if (this.splitType == null || this.splitType.isBlank()) {
+            this.splitType = "EQUAL";
+        }
     }
 }

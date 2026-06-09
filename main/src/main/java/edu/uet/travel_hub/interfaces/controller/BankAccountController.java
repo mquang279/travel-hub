@@ -37,6 +37,11 @@ public class BankAccountController {
                 .body(this.bankAccountService.create(this.currentUserProvider.getCurrentUserId(), request));
     }
 
+    @PutMapping("/default")
+    public ResponseEntity<BankAccountResponse> upsertDefault(@Valid @RequestBody CreateBankAccountRequest request) {
+        return ResponseEntity.ok(this.bankAccountService.upsertDefault(this.currentUserProvider.getCurrentUserId(), request));
+    }
+
     @GetMapping("")
     public ResponseEntity<List<BankAccountResponse>> listMine() {
         return ResponseEntity.ok(this.bankAccountService.listMyBankAccounts(this.currentUserProvider.getCurrentUserId()));

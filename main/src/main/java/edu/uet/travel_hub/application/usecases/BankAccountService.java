@@ -50,6 +50,24 @@ public class BankAccountService {
     }
 
     @Transactional
+    public BankAccountResponse upsertDefault(Long currentUserId, CreateBankAccountRequest request) {
+        UserEntity user = this.tripService.findUser(currentUserId);
+        BankAccountEntity account = this.bankAccountJpaRepository.findFirstByUserIdAndIsDefaultTrue(currentUserId)
+                .orElseGet(() -> BankAccountEntity.builder()
+                        .user(user)
+                        .isDefault(true)
+                        .build());
+        clearDefault(currentUserId);
+        account.setUser(user);
+        account.setBankCode(normalize(request.bankCode(), "bankCode"));
+        account.setBankName(normalize(request.bankName(), "bankName"));
+        account.setAccountNumber(normalize(request.accountNumber(), "accountNumber"));
+        account.setAccountName(normalize(request.accountName(), "accountName"));
+        account.setIsDefault(true);
+        return toResponse(this.bankAccountJpaRepository.save(account));
+    }
+
+    @Transactional
     public BankAccountResponse setDefault(Long currentUserId, Long accountId) {
         BankAccountEntity target = this.bankAccountJpaRepository.findByIdAndUserId(accountId, currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bank account not found"));

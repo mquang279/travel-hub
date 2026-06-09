@@ -15,5 +15,7 @@ public record TripExpenseTransactionResponse(
         BigDecimal amount,
         Instant date,
         String proofImageUrl,
-        List<Long> splitUserIds) {
+        String splitType,
+        List<Long> splitUserIds,
+        List<TripExpenseSplitShareResponse> splitShares) {
 }
