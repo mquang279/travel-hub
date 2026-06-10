@@ -178,10 +178,17 @@ class TravelAssistantService:
             )
 
         @tool
-        async def get_place_reviews(place_id: int, limit: int = 5) -> dict[str, Any]:
-            """Get recent reviews, rating summary, and public reviewer profiles for a place."""
+        async def get_place_reviews(
+            place_id: int,
+            limit: int = 5,
+            query: str | None = None,
+        ) -> dict[str, Any]:
+            """Get recent or matching reviews, rating summary, and public reviewer profiles for a place."""
             return await self._get_place_reviews(
-                pool=pool, place_id=place_id, limit=limit
+                pool=pool,
+                place_id=place_id,
+                limit=limit,
+                query=query,
             )
 
         @tool
@@ -191,12 +198,15 @@ class TravelAssistantService:
 
         @tool
         async def find_reviewer_reviews(
-            user_query: str, limit: int = 5
+            user_query: str | None = None,
+            user_id: int | None = None,
+            limit: int = 5,
         ) -> dict[str, Any]:
-            """Find a user by name or username and return their public profile and place reviews."""
+            """Find a user by ID, name, or username and return their public profile and place reviews."""
             return await self._find_reviewer_reviews(
                 pool=pool,
                 user_query=user_query,
+                user_id=user_id,
                 limit=limit,
             )
 
@@ -298,9 +308,11 @@ class TravelAssistantService:
         return [dict(row) for row in rows]
 
     async def _get_place_reviews(
-        self, pool: Any, place_id: int, limit: int
+        self, pool: Any, place_id: int, limit: int, query: str | None = None
     ) -> dict[str, Any]:
         normalized_limit = min(max(limit, 1), 10)
+        normalized_query = self._normalize_vietnamese(query or "")
+        terms = self._query_terms(normalized_query)
         async with pool.acquire() as conn:
             place = await conn.fetchrow(
                 """
@@ -334,11 +346,24 @@ class TravelAssistantService:
                 FROM travel_place_reviews tpr
                 JOIN users u ON u.id = tpr.user_id
                 WHERE tpr.place_id = $1
+                  AND (
+                      $3 = ''
+                      OR unaccent(lower(COALESCE(tpr.content, ''))) LIKE '%' || $3 || '%'
+                      OR EXISTS (
+                          SELECT 1
+                          FROM unnest($4::text[]) AS term
+                          WHERE
+                              length(term) >= 2
+                              AND unaccent(lower(COALESCE(tpr.content, ''))) LIKE '%' || term || '%'
+                      )
+                  )
                 ORDER BY tpr.updated_at DESC
                 LIMIT $2
                 """,
                 place_id,
                 normalized_limit,
+                normalized_query,
+                terms,
             )
         return {
             "place": dict(place) if place else None,
@@ -348,45 +373,71 @@ class TravelAssistantService:
     async def _find_reviewer_reviews(
         self,
         pool: Any,
-        user_query: str,
+        user_query: str | None,
+        user_id: int | None,
         limit: int,
     ) -> dict[str, Any]:
         normalized_limit = min(max(limit, 1), 10)
-        query = user_query.strip()
-        if not query:
+        query = (user_query or "").strip()
+        resolved_user_id = user_id
+
+        if resolved_user_id is None and query.isdigit():
+            resolved_user_id = int(query)
+
+        if resolved_user_id is None and not query:
             return {"user": None, "reviews": []}
 
         async with pool.acquire() as conn:
-            user = await conn.fetchrow(
-                """
-                SELECT
-                    u.id,
-                    u.username,
-                    u.name,
-                    u.bio,
-                    u.avatar_url,
-                    u.location,
-                    u.trip_type,
-                    u.followers_count,
-                    u.following_count,
-                    u.posts_count
-                FROM users u
-                WHERE lower(u.username) = lower($1)
-                   OR lower(COALESCE(u.name, '')) = lower($1)
-                   OR lower(u.username) LIKE lower('%' || $1 || '%')
-                   OR lower(COALESCE(u.name, '')) LIKE lower('%' || $1 || '%')
-                ORDER BY
-                    CASE
-                        WHEN lower(u.username) = lower($1) THEN 0
-                        WHEN lower(COALESCE(u.name, '')) = lower($1) THEN 1
-                        WHEN lower(u.username) LIKE lower($1 || '%') THEN 2
-                        ELSE 3
-                    END,
-                    u.id
-                LIMIT 1
-                """,
-                query,
-            )
+            if resolved_user_id is not None:
+                user = await conn.fetchrow(
+                    """
+                    SELECT
+                        u.id,
+                        u.username,
+                        u.name,
+                        u.bio,
+                        u.avatar_url,
+                        u.location,
+                        u.trip_type,
+                        u.followers_count,
+                        u.following_count,
+                        u.posts_count
+                    FROM users u
+                    WHERE u.id = $1
+                    """,
+                    resolved_user_id,
+                )
+            else:
+                user = await conn.fetchrow(
+                    """
+                    SELECT
+                        u.id,
+                        u.username,
+                        u.name,
+                        u.bio,
+                        u.avatar_url,
+                        u.location,
+                        u.trip_type,
+                        u.followers_count,
+                        u.following_count,
+                        u.posts_count
+                    FROM users u
+                    WHERE lower(u.username) = lower($1)
+                       OR lower(COALESCE(u.name, '')) = lower($1)
+                       OR lower(u.username) LIKE lower('%' || $1 || '%')
+                       OR lower(COALESCE(u.name, '')) LIKE lower('%' || $1 || '%')
+                    ORDER BY
+                        CASE
+                            WHEN lower(u.username) = lower($1) THEN 0
+                            WHEN lower(COALESCE(u.name, '')) = lower($1) THEN 1
+                            WHEN lower(u.username) LIKE lower($1 || '%') THEN 2
+                            ELSE 3
+                        END,
+                        u.id
+                    LIMIT 1
+                    """,
+                    query,
+                )
             if user is None:
                 return {"user": None, "reviews": []}
 

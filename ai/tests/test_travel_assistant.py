@@ -17,6 +17,19 @@ class FakeConnection:
 
     async def fetchrow(self, query: str, *args: Any) -> dict[str, Any]:
         self.fetchrow_calls.append((query, *args))
+        if args and args[0] == 99:
+            return {
+                "id": 99,
+                "username": "minh",
+                "name": "Minh Tran",
+                "bio": "Hay review",
+                "avatar_url": "https://example.com/minh.jpg",
+                "location": "Da Nang",
+                "trip_type": "adventure",
+                "followers_count": 21,
+                "following_count": 8,
+                "posts_count": 5,
+            }
         return {
             "id": 7,
             "username": "linh",
@@ -170,6 +183,7 @@ class TravelAssistantServiceTest(unittest.IsolatedAsyncioTestCase):
         result = await service._find_reviewer_reviews(
             pool=FakePool(connection),
             user_query="linh",
+            user_id=None,
             limit=50,
         )
         serialized = json.loads(service._serialize_tool_result(result))
@@ -178,6 +192,39 @@ class TravelAssistantServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("Van Mieu", serialized["reviews"][0]["place_name"])
         self.assertEqual(10, connection.fetch_calls[0][-1])
         self.assertEqual("2026-06-02 00:00:00+00:00", serialized["reviews"][0]["updated_at"])
+
+    async def test_find_reviewer_reviews_accepts_user_id(self) -> None:
+        service = TravelAssistantService(keys=[])
+        connection = FakeConnection()
+
+        result = await service._find_reviewer_reviews(
+            pool=FakePool(connection),
+            user_query="99",
+            user_id=None,
+            limit=5,
+        )
+        serialized = json.loads(service._serialize_tool_result(result))
+
+        self.assertEqual(99, serialized["user"]["id"])
+        self.assertEqual("minh", serialized["user"]["username"])
+        self.assertEqual(99, connection.fetchrow_calls[0][-1])
+
+    async def test_get_place_reviews_accepts_review_content_query(self) -> None:
+        service = TravelAssistantService(keys=[])
+        connection = FakeConnection()
+
+        result = await service._get_place_reviews(
+            pool=FakePool(connection),
+            place_id=21,
+            limit=5,
+            query="dang ghe",
+        )
+        serialized = json.loads(service._serialize_tool_result(result))
+
+        self.assertEqual("Van Mieu", serialized["place"]["name"])
+        self.assertEqual("Rat dang ghe.", serialized["reviews"][0]["content"])
+        self.assertEqual("dang ghe", connection.fetch_calls[0][3])
+        self.assertEqual(["dang", "ghe"], connection.fetch_calls[0][4])
 
     async def test_search_normalizes_vietnamese_with_or_without_diacritics(self) -> None:
         service = TravelAssistantService(keys=[])
