@@ -103,13 +103,14 @@ async def lifespan(app: FastAPI):
     )
     await init_db(app.state.pg_pool)
     app.state.itinerary_service = itinerary.new_itinerary_service()
-    app.state.travel_assistant_service = TravelAssistantService(
-        keys=settings.google_api_keys.split(",")
-    )
     app.state.embedding_service = EmbeddingService(
         model_name=settings.embedding_model_name,
         dimensions=settings.embedding_dimensions,
         device=settings.embedding_device,
+    )
+    app.state.travel_assistant_service = TravelAssistantService(
+        keys=settings.google_api_keys.split(","),
+        embedding_service=app.state.embedding_service,
     )
     app.state.embedding_text_composer = EmbeddingTextComposer()
     app.state.content_embedding_processor = ContentEmbeddingProcessor(

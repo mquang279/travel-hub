@@ -37,3 +37,4 @@ class TravelPlaceEmbeddingUpsertCommand(BaseModel):
     lon: float | None = None
     views: int | None = None
     image_urls: list[str] = Field(default_factory=list, alias="imageUrls")
+    reviews: list[dict[str, object]] = Field(default_factory=list)

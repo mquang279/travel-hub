@@ -59,6 +59,7 @@ class ContentEmbeddingProcessor:
             lat=command.lat,
             lon=command.lon,
             views=command.views,
+            reviews=command.reviews,
         )
         vector = self.embedding_service.generate(embedding_text)
         await upsert_travel_place_embedding(

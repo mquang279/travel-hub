@@ -54,6 +54,59 @@ async def get_travel_place_embeddings_by_ids(place_ids: list[int], pool):
         )
 
 
+async def search_travel_place_embeddings(
+    query_embedding: str,
+    pool,
+    province: str = "",
+    limit: int = 5,
+):
+    normalized_limit = min(max(limit, 1), 10)
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            """
+            WITH query_vector AS (
+                SELECT CAST($1 AS vector) AS query_embedding
+            )
+            SELECT
+                tpe.travel_place_id,
+                tp.name,
+                p.name AS province,
+                tp.description,
+                tpe.content,
+                COALESCE(AVG(tpr.rating), 0) AS average_rating,
+                COUNT(tpr.id) AS review_count,
+                (tpe.embedding <=> query_vector.query_embedding) AS distance
+            FROM travel_place_embeddings tpe
+            JOIN travel_places tp ON tp.id = tpe.travel_place_id
+            JOIN provinces p ON p.id = tp.province_id
+            LEFT JOIN travel_place_reviews tpr ON tpr.place_id = tp.id
+            CROSS JOIN query_vector
+            WHERE (
+                $2 = ''
+                OR unaccent(lower(p.name)) LIKE '%' || unaccent(lower($2)) || '%'
+                OR unaccent(lower(COALESCE(p.codename, ''))) LIKE '%' || unaccent(lower($2)) || '%'
+            )
+            GROUP BY
+                tpe.travel_place_id,
+                tp.name,
+                p.name,
+                tp.description,
+                tpe.content,
+                tpe.embedding,
+                query_vector.query_embedding
+            ORDER BY
+                distance ASC,
+                COUNT(tpr.id) DESC,
+                COALESCE(AVG(tpr.rating), 0) DESC,
+                tpe.travel_place_id ASC
+            LIMIT $3;
+            """,
+            query_embedding,
+            province,
+            normalized_limit,
+        )
+
+
 def parse_content(raw_content) -> dict:
     if isinstance(raw_content, dict):
         return raw_content

@@ -14,13 +14,19 @@ from src.entity.travel_assistant import (
     TravelAssistantChatResponse,
     TravelAssistantPlaceReference,
 )
+from src.repo.recommendations import (
+    parse_content,
+    search_travel_place_embeddings,
+)
 from src.repo.rate_limit_log import get_keys_by_lowest_usage, rate_limit
+from src.services.embedding import EmbeddingService
 from src.utils.constants import TRAVEL_ASSISTANT_SYSTEM_PROMPT
 
 
 class TravelAssistantService:
-    def __init__(self, keys: list[str]):
+    def __init__(self, keys: list[str], embedding_service: EmbeddingService):
         self.models: dict[str, Any] = {}
+        self.embedding_service = embedding_service
 
         for key in keys:
             cleaned_key = key.strip()
@@ -99,51 +105,68 @@ class TravelAssistantService:
         payload: TravelAssistantChatRequest,
         pool: Any,
     ) -> TravelAssistantChatResponse:
+        retrieval_rows = await self._retrieve_place_candidates(
+            pool=pool,
+            query=self._latest_user_input(payload.message),
+            limit=5,
+        )
+        retrieval_context = self._format_retrieval_context(retrieval_rows)
         model = await self.get_available_model(pool=pool)
         agent = create_agent(
             model=model,
             tools=self._build_tools(pool=pool),
             system_prompt=TRAVEL_ASSISTANT_SYSTEM_PROMPT,
         )
+        messages = []
+        if retrieval_context:
+            messages.append({"role": "system", "content": retrieval_context})
         history = [
             {"role": item.role, "content": item.content}
             for item in payload.history[-10:]
             if item.content.strip()
         ]
+        messages.extend(history)
+        messages.append({"role": "user", "content": payload.message})
         result = await agent.ainvoke(
             {
-                "messages": [
-                    *history,
-                    {"role": "user", "content": payload.message},
-                ]
+                "messages": messages
             }
         )
         answer = self._extract_agent_text(result)
-        return TravelAssistantChatResponse(answer=answer, places=[])
+        places = [self._to_reference(row) for row in retrieval_rows]
+        return TravelAssistantChatResponse(answer=answer, places=places)
 
     async def _chat_with_agent_stream(
         self,
         payload: TravelAssistantChatRequest,
         pool: Any,
     ) -> AsyncGenerator[str, None]:
+        retrieval_rows = await self._retrieve_place_candidates(
+            pool=pool,
+            query=self._latest_user_input(payload.message),
+            limit=5,
+        )
+        retrieval_context = self._format_retrieval_context(retrieval_rows)
         model = await self.get_available_model(pool=pool)
         agent = create_agent(
             model=model,
             tools=self._build_tools(pool=pool),
             system_prompt=TRAVEL_ASSISTANT_SYSTEM_PROMPT,
         )
+        messages = []
+        if retrieval_context:
+            messages.append({"role": "system", "content": retrieval_context})
         history = [
             {"role": item.role, "content": item.content}
             for item in payload.history[-10:]
             if item.content.strip()
         ]
+        messages.extend(history)
+        messages.append({"role": "user", "content": payload.message})
         answer_parts: list[str] = []
         stream = agent.astream(
             {
-                "messages": [
-                    *history,
-                    {"role": "user", "content": payload.message},
-                ]
+                "messages": messages
             },
             stream_mode="messages",
             version="v2",
@@ -161,7 +184,10 @@ class TravelAssistantService:
         answer = "".join(answer_parts).strip()
         yield self._sse_event(
             "final",
-            TravelAssistantChatResponse(answer=answer, places=[]).model_dump(),
+            TravelAssistantChatResponse(
+                answer=answer,
+                places=[self._to_reference(row) for row in retrieval_rows],
+            ).model_dump(),
         )
 
     def _build_tools(self, pool: Any):
@@ -169,8 +195,8 @@ class TravelAssistantService:
         async def search_travel_places(
             keyword: str, province: str = "", limit: int = 5
         ) -> dict[str, Any]:
-            """Search Travel Hub places in Vietnamese, with or without diacritics."""
-            return await self._search_places(
+            """Search Travel Hub places using semantic retrieval first, then lexical fallback."""
+            return await self._search_places_semantic(
                 pool=pool,
                 keyword=keyword,
                 province=province,
@@ -217,7 +243,7 @@ class TravelAssistantService:
             find_reviewer_reviews,
         ]
 
-    async def _search_places(
+    async def _search_places_semantic(
         self,
         pool: Any,
         keyword: str,
@@ -225,8 +251,116 @@ class TravelAssistantService:
         limit: int,
     ) -> list[dict[str, Any]]:
         normalized_limit = min(max(limit, 1), 10)
+        query = (keyword or "").strip()
+        if not query:
+            return await self._search_places(
+                pool=pool,
+                keyword=keyword,
+                province=province,
+                limit=limit,
+            )
+
+        strict_mode = self._has_vietnamese_diacritics(query)
+        lexical_rows = await self._search_places(
+            pool=pool,
+            keyword=keyword,
+            province=province,
+            limit=normalized_limit,
+            strict_accent_match=strict_mode,
+        )
+        query_vector = self.embedding_service.generate(query)
+        if not query_vector:
+            return lexical_rows
+
+        rows = await search_travel_place_embeddings(
+            query_embedding=self._to_vector_literal(query_vector),
+            pool=pool,
+            province=province,
+            limit=normalized_limit,
+        )
+
+        semantic_rows = []
+        for row in rows:
+            content = parse_content(row["content"])
+            semantic_rows.append(
+                {
+                    "id": row["travel_place_id"],
+                    "name": row["name"],
+                    "province": row.get("province"),
+                    "description": row.get("description"),
+                    "average_rating": float(row.get("average_rating") or 0.0),
+                    "review_count": int(row.get("review_count") or 0),
+                    "score": self._distance_to_score(row.get("distance")),
+                    "snippet": self._build_place_snippet(content),
+                }
+            )
+
+        if not lexical_rows:
+            return semantic_rows
+
+        merged: list[dict[str, Any]] = []
+        seen_ids: set[int] = set()
+        for row in lexical_rows + semantic_rows:
+            place_id = int(row["id"])
+            if place_id in seen_ids:
+                continue
+            seen_ids.add(place_id)
+            merged.append(row)
+            if len(merged) >= normalized_limit:
+                break
+        return merged
+
+    async def _retrieve_place_candidates(
+        self,
+        pool: Any,
+        query: str,
+        province: str = "",
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        query = (query or "").strip()
+        if not query:
+            return []
+
+        return await self._search_places_semantic(
+            pool=pool,
+            keyword=query,
+            province=province,
+            limit=limit,
+        )
+
+    def _format_retrieval_context(self, rows: list[dict[str, Any]]) -> str:
+        if not rows:
+            return ""
+
+        lines = [
+            "Retrieved place candidates from DB. Use them to ground recommendations and do not invent place facts:",
+        ]
+        for index, row in enumerate(rows, start=1):
+            title = row.get("name") or "Unknown place"
+            province = row.get("province") or ""
+            rating = row.get("average_rating")
+            reviews = row.get("review_count") or 0
+            snippet = row.get("snippet") or ""
+            rating_text = "n/a" if rating is None else f"{float(rating):.2f}/5"
+            location_text = f" ({province})" if province else ""
+            lines.append(
+                f"{index}. {title}{location_text} | rating: {rating_text} | reviews: {reviews} | {snippet}"
+            )
+        return "\n".join(lines)
+
+    async def _search_places(
+        self,
+        pool: Any,
+        keyword: str,
+        province: str,
+        limit: int,
+        strict_accent_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        normalized_limit = min(max(limit, 1), 10)
+        raw_query = (keyword or "").strip()
         normalized_query = self._normalize_vietnamese(f"{keyword} {province}")
-        terms = self._query_terms(normalized_query)
+        matching_text = f"{raw_query} {province}" if strict_accent_match else normalized_query
+        terms = self._query_terms(matching_text)
         async with pool.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -235,6 +369,10 @@ class TravelAssistantService:
                         tp.*,
                         p.name AS province,
                         p.codename AS province_codename,
+                        lower(tp.name) AS raw_name,
+                        lower(COALESCE(tp.description, '')) AS raw_description,
+                        lower(p.name) AS raw_province,
+                        lower(COALESCE(p.codename, '')) AS raw_codename,
                         unaccent(lower(tp.name)) AS normalized_name,
                         unaccent(lower(COALESCE(tp.description, ''))) AS normalized_description,
                         unaccent(lower(p.name)) AS normalized_province,
@@ -250,15 +388,43 @@ class TravelAssistantService:
                     sp.views,
                     sp.province,
                     COALESCE(AVG(tpr.rating), 0) AS average_rating,
-                    COUNT(tpr.id) AS review_count
+                    COUNT(tpr.id) AS review_count,
+                    CASE
+                        WHEN $4 THEN
+                            CASE
+                                WHEN sp.raw_name LIKE '%' || $5 || '%' THEN 3
+                                WHEN sp.raw_description LIKE '%' || $5 || '%' THEN 2
+                                WHEN sp.raw_province LIKE '%' || $5 || '%' THEN 2
+                                WHEN sp.raw_codename LIKE '%' || $5 || '%' THEN 2
+                                ELSE 0
+                            END
+                        ELSE
+                            CASE
+                                WHEN sp.normalized_name LIKE '%' || $5 || '%' THEN 3
+                                WHEN sp.normalized_description LIKE '%' || $5 || '%' THEN 2
+                                WHEN sp.normalized_province LIKE '%' || $5 || '%' THEN 2
+                                WHEN sp.normalized_codename LIKE '%' || $5 || '%' THEN 2
+                                ELSE 0
+                            END
+                    END AS lexical_score
                 FROM searchable_places sp
                 LEFT JOIN travel_place_reviews tpr ON tpr.place_id = sp.id
                 WHERE
-                    $1 = ''
-                    OR sp.normalized_name LIKE '%' || $1 || '%'
-                    OR sp.normalized_description LIKE '%' || $1 || '%'
-                    OR sp.normalized_province LIKE '%' || $1 || '%'
-                    OR sp.normalized_codename LIKE '%' || $1 || '%'
+                    $5 = ''
+                    OR (
+                        CASE
+                            WHEN $4 THEN
+                                sp.raw_name LIKE '%' || $5 || '%'
+                                OR sp.raw_description LIKE '%' || $5 || '%'
+                                OR sp.raw_province LIKE '%' || $5 || '%'
+                                OR sp.raw_codename LIKE '%' || $5 || '%'
+                            ELSE
+                                sp.normalized_name LIKE '%' || $5 || '%'
+                                OR sp.normalized_description LIKE '%' || $5 || '%'
+                                OR sp.normalized_province LIKE '%' || $5 || '%'
+                                OR sp.normalized_codename LIKE '%' || $5 || '%'
+                        END
+                    )
                     OR EXISTS (
                         SELECT 1
                         FROM unnest($2::text[]) AS term
@@ -282,8 +448,13 @@ class TravelAssistantService:
                     sp.normalized_name,
                     sp.normalized_description,
                     sp.normalized_province,
-                    sp.normalized_codename
+                    sp.normalized_codename,
+                    sp.raw_name,
+                    sp.raw_description,
+                    sp.raw_province,
+                    sp.raw_codename
                 ORDER BY
+                    lexical_score DESC,
                     (
                         SELECT COUNT(*)
                         FROM unnest($2::text[]) AS term
@@ -301,9 +472,11 @@ class TravelAssistantService:
                     sp.id ASC
                 LIMIT $3
                 """,
-                normalized_query,
+                raw_query,
                 terms,
                 normalized_limit,
+                strict_accent_match,
+                raw_query if strict_accent_match else normalized_query,
             )
         return [dict(row) for row in rows]
 
@@ -493,6 +666,47 @@ class TravelAssistantService:
             )
         return dict(row) if row else {}
 
+    @staticmethod
+    def _build_place_snippet(content: dict[str, Any]) -> str | None:
+        parts: list[str] = []
+        title = str(content.get("title") or content.get("name") or "").strip()
+        description = str(content.get("description") or "").strip()
+        if title:
+            parts.append(title)
+        if description:
+            parts.append(description[:180])
+
+        reviews = content.get("reviews")
+        if isinstance(reviews, list):
+            review_texts = []
+            for review in reviews[:2]:
+                if not isinstance(review, dict):
+                    continue
+                review_content = str(review.get("content") or "").strip()
+                if review_content:
+                    review_texts.append(review_content[:120])
+            if review_texts:
+                parts.append(" | ".join(review_texts))
+
+        snippet = " - ".join(part for part in parts if part)
+        return snippet or None
+
+    @staticmethod
+    def _distance_to_score(distance: Any) -> float:
+        try:
+            value = float(distance)
+        except (TypeError, ValueError):
+            return 0.0
+        if value < 0:
+            return 0.0
+        return round(1.0 / (1.0 + value), 4)
+
+    @staticmethod
+    def _to_vector_literal(vector: list[float]) -> str:
+        if not vector:
+            return "[]"
+        return "[" + ",".join(str(float(value)) for value in vector) + "]"
+
     def _to_reference(self, row: dict[str, Any]) -> TravelAssistantPlaceReference:
         rating = row.get("average_rating")
         return TravelAssistantPlaceReference(
@@ -571,6 +785,10 @@ class TravelAssistantService:
             if unicodedata.category(character) != "Mn"
         )
         return re.sub(r"\s+", " ", without_diacritics).strip()
+
+    def _has_vietnamese_diacritics(self, text: str) -> bool:
+        normalized = unicodedata.normalize("NFD", text)
+        return any(unicodedata.category(character) == "Mn" for character in normalized)
 
     def _shorten(self, text: str | None) -> str:
         if not text:
