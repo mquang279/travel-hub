@@ -2,33 +2,23 @@ package edu.uet.travel_hub.infrastructure.security;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.List;
-
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 import edu.uet.travel_hub.application.port.out.TokenProvider;
 import edu.uet.travel_hub.domain.model.UserModel;
 import org.springframework.stereotype.Component;
 
-import com.nimbusds.jose.util.Base64;
-
 @Component
 public class JwtTokenProvider implements TokenProvider {
     private final JwtEncoder jwtEncoder;
-
-    @Value("${secret.key}")
-    private String secretKey;
+    private final JwtDecoder jwtDecoder;
 
     @Value("${access.token.expiration.time}")
     private long accessTokenExpiration;
@@ -38,8 +28,9 @@ public class JwtTokenProvider implements TokenProvider {
 
     public static final MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS256;
 
-    public JwtTokenProvider(JwtEncoder jwtEncoder) {
+    public JwtTokenProvider(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder) {
         this.jwtEncoder = jwtEncoder;
+        this.jwtDecoder = jwtDecoder;
     }
 
     @Override
@@ -92,37 +83,11 @@ public class JwtTokenProvider implements TokenProvider {
             return false;
         }
 
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(getSecretKey())
-                .macAlgorithm(JWT_ALGORITHM).build();
         try {
             jwtDecoder.decode(refreshToken);
             return true;
         } catch (Exception e) {
             return false;
-        }
-    }
-
-    private SecretKey getSecretKey() {
-        byte[] keyBytes = runCatchingBase64(secretKey);
-        if (keyBytes.length < 32) {
-            keyBytes = sha256(secretKey);
-        }
-        return new SecretKeySpec(keyBytes, JWT_ALGORITHM.getName());
-    }
-
-    private byte[] runCatchingBase64(String value) {
-        try {
-            return Base64.from(value).decode();
-        } catch (Exception ignored) {
-            return value.getBytes(StandardCharsets.UTF_8);
-        }
-    }
-
-    private byte[] sha256(String value) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception exception) {
-            throw new IllegalStateException("Unable to derive JWT secret key", exception);
         }
     }
 
