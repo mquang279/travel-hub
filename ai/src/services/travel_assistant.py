@@ -66,6 +66,8 @@ class TravelAssistantService:
         if self.models:
             try:
                 return await self._chat_with_agent(payload=payload, pool=pool)
+            except HTTPException:
+                raise
             except Exception as exc:
                 raise HTTPException(
                     status_code=502,
@@ -89,6 +91,8 @@ class TravelAssistantService:
                 ):
                     yield chunk
                 return
+            except HTTPException:
+                raise
             except Exception as exc:
                 raise HTTPException(
                     status_code=502,
@@ -390,44 +394,44 @@ class TravelAssistantService:
                     COALESCE(AVG(tpr.rating), 0) AS average_rating,
                     COUNT(tpr.id) AS review_count,
                     CASE
-                        WHEN $4 THEN
+                        WHEN $3 THEN
                             CASE
-                                WHEN sp.raw_name LIKE '%' || $5 || '%' THEN 3
-                                WHEN sp.raw_description LIKE '%' || $5 || '%' THEN 2
-                                WHEN sp.raw_province LIKE '%' || $5 || '%' THEN 2
-                                WHEN sp.raw_codename LIKE '%' || $5 || '%' THEN 2
+                                WHEN sp.raw_name LIKE '%' || $4 || '%' THEN 3
+                                WHEN sp.raw_description LIKE '%' || $4 || '%' THEN 2
+                                WHEN sp.raw_province LIKE '%' || $4 || '%' THEN 2
+                                WHEN sp.raw_codename LIKE '%' || $4 || '%' THEN 2
                                 ELSE 0
                             END
                         ELSE
                             CASE
-                                WHEN sp.normalized_name LIKE '%' || $5 || '%' THEN 3
-                                WHEN sp.normalized_description LIKE '%' || $5 || '%' THEN 2
-                                WHEN sp.normalized_province LIKE '%' || $5 || '%' THEN 2
-                                WHEN sp.normalized_codename LIKE '%' || $5 || '%' THEN 2
+                                WHEN sp.normalized_name LIKE '%' || $4 || '%' THEN 3
+                                WHEN sp.normalized_description LIKE '%' || $4 || '%' THEN 2
+                                WHEN sp.normalized_province LIKE '%' || $4 || '%' THEN 2
+                                WHEN sp.normalized_codename LIKE '%' || $4 || '%' THEN 2
                                 ELSE 0
                             END
                     END AS lexical_score
                 FROM searchable_places sp
                 LEFT JOIN travel_place_reviews tpr ON tpr.place_id = sp.id
                 WHERE
-                    $5 = ''
+                    $4 = ''
                     OR (
                         CASE
-                            WHEN $4 THEN
-                                sp.raw_name LIKE '%' || $5 || '%'
-                                OR sp.raw_description LIKE '%' || $5 || '%'
-                                OR sp.raw_province LIKE '%' || $5 || '%'
-                                OR sp.raw_codename LIKE '%' || $5 || '%'
+                            WHEN $3 THEN
+                                sp.raw_name LIKE '%' || $4 || '%'
+                                OR sp.raw_description LIKE '%' || $4 || '%'
+                                OR sp.raw_province LIKE '%' || $4 || '%'
+                                OR sp.raw_codename LIKE '%' || $4 || '%'
                             ELSE
-                                sp.normalized_name LIKE '%' || $5 || '%'
-                                OR sp.normalized_description LIKE '%' || $5 || '%'
-                                OR sp.normalized_province LIKE '%' || $5 || '%'
-                                OR sp.normalized_codename LIKE '%' || $5 || '%'
+                                sp.normalized_name LIKE '%' || $4 || '%'
+                                OR sp.normalized_description LIKE '%' || $4 || '%'
+                                OR sp.normalized_province LIKE '%' || $4 || '%'
+                                OR sp.normalized_codename LIKE '%' || $4 || '%'
                         END
                     )
                     OR EXISTS (
                         SELECT 1
-                        FROM unnest($2::text[]) AS term
+                        FROM unnest($1::text[]) AS term
                         WHERE
                             length(term) >= 2
                             AND (
@@ -457,22 +461,21 @@ class TravelAssistantService:
                     lexical_score DESC,
                     (
                         SELECT COUNT(*)
-                        FROM unnest($2::text[]) AS term
+                        FROM unnest($1::text[]) AS term
                         WHERE sp.normalized_province LIKE '%' || term || '%'
                            OR sp.normalized_codename LIKE '%' || term || '%'
                     ) DESC,
                     (
                         SELECT COUNT(*)
-                        FROM unnest($2::text[]) AS term
+                        FROM unnest($1::text[]) AS term
                         WHERE sp.normalized_name LIKE '%' || term || '%'
                     ) DESC,
                     COUNT(tpr.id) DESC,
                     AVG(tpr.rating) DESC NULLS LAST,
                     COALESCE(sp.views, 0) DESC,
                     sp.id ASC
-                LIMIT $3
+                LIMIT $2
                 """,
-                raw_query,
                 terms,
                 normalized_limit,
                 strict_accent_match,

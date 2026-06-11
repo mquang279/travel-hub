@@ -65,7 +65,7 @@ async def search_travel_place_embeddings(
         return await conn.fetch(
             """
             WITH query_vector AS (
-                SELECT CAST($1 AS vector) AS query_embedding
+                SELECT ($1::text)::vector(128) AS query_embedding
             )
             SELECT
                 tpe.travel_place_id,
