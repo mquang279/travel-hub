@@ -320,6 +320,7 @@ public class TripExpenseService {
 
     private void replaceSplits(TripExpenseEntity expense, Map<Long, BigDecimal> splitAmounts) {
         this.expenseSplitJpaRepository.deleteByExpenseId(expense.getId());
+        this.expenseSplitJpaRepository.flush();
         List<ExpenseSplitEntity> splits = new ArrayList<>();
         splitAmounts.forEach((userId, splitAmount) -> splits.add(ExpenseSplitEntity.builder()
                 .expense(expense)

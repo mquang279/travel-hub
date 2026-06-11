@@ -284,6 +284,21 @@ public class TravelPlaceService {
         return toReviewResponse(saved);
     }
 
+    @Transactional
+    @CacheEvict(cacheNames = {
+            CACHE_TRAVEL_PLACE_LISTS,
+            CACHE_TRAVEL_PLACE_RECOMMENDED,
+            CACHE_TRAVEL_PLACE_ADMIN_DETAILS
+    }, allEntries = true)
+    public void deleteReview(Long placeId, Long userId) {
+        ensurePlaceExists(placeId);
+        TravelPlaceReviewEntity review = this.travelPlaceReviewJpaRepository
+                .findByPlaceIdAndUserId(placeId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found for this user and place"));
+        this.travelPlaceReviewJpaRepository.delete(review);
+    }
+
+
     @Transactional(readOnly = true)
     public PaginationResponse<TravelPlaceViewHistoryResponse> getViewHistory(Long currentUserId, int page,
             int pageSize) {
@@ -418,9 +433,11 @@ public class TravelPlaceService {
         String mainImage = images.stream()
                 .filter(TravelPlaceImageResponse::main)
                 .map(TravelPlaceImageResponse::imageUrl)
+                .filter(url -> url != null && !url.isBlank())
                 .findFirst()
                 .orElseGet(() -> images.stream()
                         .map(TravelPlaceImageResponse::imageUrl)
+                        .filter(url -> url != null && !url.isBlank())
                         .findFirst()
                         .orElse(null));
         return new TravelPlaceListItemResponse(
