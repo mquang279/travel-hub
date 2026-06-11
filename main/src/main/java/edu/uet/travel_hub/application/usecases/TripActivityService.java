@@ -80,7 +80,6 @@ public class TripActivityService implements TripActivityUseCase {
                 .address(normalizeOptional(request.address()))
                 .type(normalizeOptional(request.type()))
                 .orderIndex(resolveOrderIndex(request.orderIndex(), tripDay))
-                .estimatedCost(request.estimatedCost())
                 .build();
 
         TripActivityEntity saved = this.tripActivityJpaRepository.save(activity);
@@ -116,7 +115,6 @@ public class TripActivityService implements TripActivityUseCase {
         activity.setAddress(normalizeOptional(request.address()));
         activity.setType(normalizeOptional(request.type()));
         activity.setOrderIndex(resolveOrderIndex(request.orderIndex(), targetDay));
-        activity.setEstimatedCost(request.estimatedCost());
 
         TripActivityEntity saved = this.tripActivityJpaRepository.save(activity);
         deleteEmptyDay(previousDay);
@@ -206,8 +204,7 @@ public class TripActivityService implements TripActivityUseCase {
                 activity.getLocationName(),
                 activity.getAddress(),
                 activity.getType(),
-                activity.getOrderIndex(),
-                activity.getEstimatedCost());
+                activity.getOrderIndex());
     }
 
     private String normalizeRequired(String value, String fieldName) {

@@ -916,8 +916,7 @@ Response `200 OK`: `List<TripDayResponse>`
         "locationName": "Market",
         "address": "Da Nang",
         "type": "FOOD",
-        "orderIndex": 1,
-        "estimatedCost": 100000
+        "orderIndex": 1
       }
     ]
   }
@@ -942,8 +941,7 @@ Request body: `CreateTripActivityRequest`
   "locationName": "Market",
   "address": "Da Nang",
   "type": "FOOD",
-  "orderIndex": 1,
-  "estimatedCost": 100000
+  "orderIndex": 1
 }
 ```
 
@@ -1195,7 +1193,7 @@ Response `204 No Content`.
 | `CreateTripRequest` | `name: String`, `destination: String`, `startDate: LocalDate`, `endDate: LocalDate`, `budgetMin: Double`, `budgetMax: Double` |
 | `UpdateTripRequest` | `name: String`, `destination: String`, `startDate: LocalDate`, `endDate: LocalDate`, `budgetMin: BigDecimal`, `budgetMax: BigDecimal` |
 | `JoinTripRequest` | `inviteCode: String` |
-| `CreateTripActivityRequest` | `date: LocalDate`, `title: String`, `description: String`, `startTime: LocalTime`, `endTime: LocalTime`, `locationName: String`, `address: String`, `type: String`, `orderIndex: Integer`, `estimatedCost: BigDecimal` |
+| `CreateTripActivityRequest` | `date: LocalDate`, `title: String`, `description: String`, `startTime: LocalTime`, `endTime: LocalTime`, `locationName: String`, `address: String`, `type: String`, `orderIndex: Integer` |
 | `UpdateTripActivityRequest` | Same fields as `CreateTripActivityRequest` |
 | `UpdateTripMemberRoleRequest` | `role: TripMemberRole` |
 | `CreateTripPollRequest` | `title: String`, `category: TripPollCategory` |
@@ -1229,7 +1227,7 @@ Response `204 No Content`.
 | `TripInviteCodeResponse` | `inviteCode`, `inviteLink`, `expiredAt` |
 | `JoinTripResultResponse` | `tripId`, `status`, `message` |
 | `TripDayResponse` | `id`, `tripId`, `date`, `dayNumber`, `activities` |
-| `TripActivityResponse` | `id`, `tripDayId`, `title`, `description`, `startTime`, `endTime`, `locationName`, `address`, `type`, `orderIndex`, `estimatedCost` |
+| `TripActivityResponse` | `id`, `tripDayId`, `title`, `description`, `startTime`, `endTime`, `locationName`, `address`, `type`, `orderIndex` |
 | `TripJoinRequestResponse` | `userId`, `name`, `avatarUrl`, `requestedAt` |
 | `TripMemberResponse` | `userId`, `name`, `avatarUrl`, `role` |
 | `TripPollResponse` | `id`, `title`, `category`, `votesCount`, `isWinning`, `hasVoted`, `voters` |

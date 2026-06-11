@@ -1,6 +1,5 @@
 package edu.uet.travel_hub.infrastructure.persistence.entity;
 
-import java.math.BigDecimal;
 import java.time.LocalTime;
 
 import jakarta.persistence.Column;
@@ -64,7 +63,4 @@ public class TripActivityEntity {
 
     @Column(nullable = false)
     private int orderIndex;
-
-    @Column(precision = 14, scale = 2)
-    private BigDecimal estimatedCost;
 }

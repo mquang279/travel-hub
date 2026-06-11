@@ -1,6 +1,5 @@
 package edu.uet.travel_hub.application.dto.response;
 
-import java.math.BigDecimal;
 import java.time.LocalTime;
 
 public record TripActivityResponse(
@@ -13,6 +12,5 @@ public record TripActivityResponse(
         String locationName,
         String address,
         String type,
-        int orderIndex,
-        BigDecimal estimatedCost) {
+        int orderIndex) {
 }
