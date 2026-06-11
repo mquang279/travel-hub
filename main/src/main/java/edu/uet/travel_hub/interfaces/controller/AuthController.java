@@ -7,58 +7,53 @@ import edu.uet.travel_hub.application.dto.request.LoginRequest;
 import edu.uet.travel_hub.application.dto.request.RefreshTokenRequest;
 import edu.uet.travel_hub.application.dto.request.RegisterRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;
-import edu.uet.travel_hub.application.usecases.LoginService;
-import edu.uet.travel_hub.application.usecases.LogoutService;
+import edu.uet.travel_hub.application.port.in.LogoutUseCase;
+import edu.uet.travel_hub.application.port.in.LoginUseCase;
+import edu.uet.travel_hub.application.port.in.RegisterUseCase;
 import edu.uet.travel_hub.application.usecases.RefreshTokenService;
-import edu.uet.travel_hub.application.usecases.RegisterService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-    private final RegisterService registerService;
-    private final LoginService loginService;
-    private final LogoutService logoutService;
+    private final RegisterUseCase registerUseCase;
+    private final LoginUseCase loginUseCase;
     private final RefreshTokenService refreshTokenService;
+    private final LogoutUseCase logoutUseCase;
 
-    public AuthController(RegisterService registerService, LoginService loginService, LogoutService logoutService,
-            RefreshTokenService refreshTokenService) {
-        this.registerService = registerService;
-        this.loginService = loginService;
-        this.logoutService = logoutService;
+    public AuthController(
+            RegisterUseCase registerUseCase,
+            LoginUseCase loginUseCase,
+            RefreshTokenService refreshTokenService,
+            LogoutUseCase logoutUseCase) {
+        this.registerUseCase = registerUseCase;
+        this.loginUseCase = loginUseCase;
         this.refreshTokenService = refreshTokenService;
+        this.logoutUseCase = logoutUseCase;
     }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
-        AuthResponse response = this.registerService.register(request);
-        return ResponseEntity.ok().body(response);
+        return ResponseEntity.ok(registerUseCase.register(request));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> loging(@RequestBody LoginRequest request) {
-        AuthResponse response = this.loginService.login(request);
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        System.out.println(authentication);
-        return ResponseEntity.ok().body(response);
+    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
+        return ResponseEntity.ok(loginUseCase.login(request));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(this.refreshTokenService.refresh(request));
+        return ResponseEntity.ok(refreshTokenService.refresh(request));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        this.logoutService.logout(email);
+    public ResponseEntity<Void> logout(Authentication authentication) {
+        logoutUseCase.logout(authentication.getName());
         return ResponseEntity.noContent().build();
     }
-
 }

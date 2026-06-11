@@ -10,6 +10,8 @@ import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
 import edu.uet.travel_hub.domain.model.UserModel;
+import edu.uet.travel_hub.infrastructure.persistence.entity.BankAccountEntity;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.BankAccountJpaRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -17,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class UpdateProfileService implements UpdateProfileUseCase {
     private final UserRepository userRepository;
     private final UserProfileMapper userProfileMapper;
+    private final BankAccountJpaRepository bankAccountJpaRepository;
 
     @Override
     @Transactional
@@ -50,6 +53,21 @@ public class UpdateProfileService implements UpdateProfileUseCase {
         }
 
         UserModel savedUser = userRepository.save(user);
-        return userProfileMapper.toProfileResponse(savedUser, false);
+        UserProfileResponse response = userProfileMapper.toProfileResponse(savedUser, false);
+        enrichDefaultBankAccount(response, userId);
+        return response;
+    }
+
+    private void enrichDefaultBankAccount(UserProfileResponse response, Long userId) {
+        BankAccountEntity bankAccount = bankAccountJpaRepository.findFirstByUserIdAndIsDefaultTrue(userId)
+                .orElse(null);
+        response.setHasBankAccount(bankAccount != null);
+        if (bankAccount == null) {
+            return;
+        }
+        response.setBankCode(bankAccount.getBankCode());
+        response.setBankName(bankAccount.getBankName());
+        response.setAccountNumber(bankAccount.getAccountNumber());
+        response.setAccountName(bankAccount.getAccountName());
     }
 }

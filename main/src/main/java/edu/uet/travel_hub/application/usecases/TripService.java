@@ -49,6 +49,7 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollVote
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripMemberJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceImageJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.BankAccountJpaRepository;
 
 @Service
 public class TripService {
@@ -62,6 +63,7 @@ public class TripService {
     private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
     private final TripActivityLogJpaRepository tripActivityLogJpaRepository;
     private final TravelPlaceImageJpaRepository travelPlaceImageJpaRepository;
+    private final BankAccountJpaRepository bankAccountJpaRepository;
     private final TripActivityLogService tripActivityLogService;
     private final edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService;
 
@@ -74,6 +76,7 @@ public class TripService {
             TripPollVoteJpaRepository tripPollVoteJpaRepository,
             TripActivityLogJpaRepository tripActivityLogJpaRepository,
             TravelPlaceImageJpaRepository travelPlaceImageJpaRepository,
+            BankAccountJpaRepository bankAccountJpaRepository,
             TripActivityLogService tripActivityLogService,
             edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService) {
         this.tripJpaRepository = tripJpaRepository;
@@ -84,6 +87,7 @@ public class TripService {
         this.tripPollVoteJpaRepository = tripPollVoteJpaRepository;
         this.tripActivityLogJpaRepository = tripActivityLogJpaRepository;
         this.travelPlaceImageJpaRepository = travelPlaceImageJpaRepository;
+        this.bankAccountJpaRepository = bankAccountJpaRepository;
         this.tripActivityLogService = tripActivityLogService;
         this.inviteCodeService = inviteCodeService;
     }
@@ -309,6 +313,9 @@ public class TripService {
         TripEntity trip = this.tripJpaRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new IllegalArgumentException("Mã mời không hợp lệ"));
         UserEntity currentUser = findUser(currentUserId);
+        if (this.bankAccountJpaRepository.findFirstByUserIdAndIsDefaultTrue(currentUserId).isEmpty()) {
+            throw new IllegalStateException("Bank account is required to join trip");
+        }
 
         if (trip.getInviteCodeExpiredAt() != null && trip.getInviteCodeExpiredAt().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Mã mời đã hết hạn");
@@ -490,6 +497,9 @@ public class TripService {
     }
 
     private TripStatus resolveDashboardStatus(TripEntity trip) {
+        if (trip.getStatus() == TripStatus.COMPLETED) {
+            return TripStatus.COMPLETED;
+        }
         return TripStatus.fromDates(trip.getStartDate(), trip.getEndDate());
     }
 }

@@ -3,7 +3,10 @@ package edu.uet.travel_hub.application.usecases;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,9 +45,22 @@ public class TripActivityService implements TripActivityUseCase {
     @Transactional(readOnly = true)
     public List<TripDayResponse> listTripDays(Long tripId, Long currentUserId) {
         this.tripService.requireActiveMemberTrip(tripId, currentUserId);
-        return this.tripDayJpaRepository.findByTripIdOrderByDateAscIdAsc(tripId)
+        List<TripDayEntity> days = this.tripDayJpaRepository.findByTripIdOrderByDateAscIdAsc(tripId);
+        Map<Long, List<TripActivityResponse>> activitiesByDayId = this.tripActivityJpaRepository
+                .findByTripDayTripIdOrderByTripDayDateAscTripDayIdAscOrderIndexAscIdAsc(tripId)
                 .stream()
-                .map(this::toDayResponse)
+                .collect(Collectors.groupingBy(
+                        activity -> activity.getTripDay().getId(),
+                        LinkedHashMap::new,
+                        Collectors.mapping(this::toActivityResponse, Collectors.toList())));
+
+        return days.stream()
+                .map(day -> new TripDayResponse(
+                        day.getId(),
+                        day.getTrip().getId(),
+                        day.getDate(),
+                        day.getDayNumber(),
+                        activitiesByDayId.getOrDefault(day.getId(), List.of())))
                 .toList();
     }
 
@@ -177,19 +193,6 @@ public class TripActivityService implements TripActivityUseCase {
         if (this.tripActivityJpaRepository.countByTripDayId(tripDay.getId()) == 0) {
             this.tripDayJpaRepository.delete(tripDay);
         }
-    }
-
-    private TripDayResponse toDayResponse(TripDayEntity tripDay) {
-        List<TripActivityResponse> activities = tripDay.getActivities().stream()
-                .sorted(Comparator.comparingInt(TripActivityEntity::getOrderIndex).thenComparing(TripActivityEntity::getId))
-                .map(this::toActivityResponse)
-                .toList();
-        return new TripDayResponse(
-                tripDay.getId(),
-                tripDay.getTrip().getId(),
-                tripDay.getDate(),
-                tripDay.getDayNumber(),
-                activities);
     }
 
     private TripActivityResponse toActivityResponse(TripActivityEntity activity) {

@@ -22,4 +22,9 @@ public class UserProfileResponse {
     private int followingCount;
     private int postsCount;
     private boolean isFollowing;
+    private boolean hasBankAccount;
+    private String bankCode;
+    private String bankName;
+    private String accountNumber;
+    private String accountName;
 }

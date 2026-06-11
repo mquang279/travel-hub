@@ -31,7 +31,32 @@ SELECT
             WHERE tpi.place_id = tp.id
         ),
         '[]'::json
-    ) AS image_urls
+    ) AS image_urls,
+    COALESCE(
+        (
+            SELECT json_agg(review_item ORDER BY updated_at DESC, review_id DESC)
+            FROM (
+                SELECT
+                    r.id AS review_id,
+                    r.updated_at AS updated_at,
+                    json_build_object(
+                        'review_id', r.id,
+                        'author_name', COALESCE(u.name, u.username, 'anonymous'),
+                        'username', u.username,
+                        'rating', r.rating,
+                        'content', r.content,
+                        'updated_at', r.updated_at
+                    ) AS review_item
+                FROM travel_place_reviews r
+                LEFT JOIN users u ON u.id = r.user_id
+                WHERE r.place_id = tp.id
+                  AND COALESCE(TRIM(r.content), '') <> ''
+                ORDER BY r.updated_at DESC, r.id DESC
+                LIMIT 5
+            ) review_items
+        ),
+        '[]'::json
+    ) AS reviews
 FROM travel_places tp
 JOIN provinces p ON p.id = tp.province_id
 ORDER BY tp.id ASC;
@@ -67,6 +92,7 @@ async def main():
                     lon=row["lon"],
                     views=row["views"],
                     image_urls=_to_string_list(row["image_urls"]),
+                    reviews=_to_review_list(row["reviews"]),
                 ),
                 pool=target_pool,
             )
@@ -89,6 +115,40 @@ def _to_string_list(values: Sequence[str] | None) -> list[str]:
             return []
         return [str(value).strip() for value in parsed if str(value).strip()]
     return [str(value).strip() for value in values if str(value).strip()]
+
+
+def _to_review_list(values) -> list[dict[str, object]]:
+    if not values:
+        return []
+    if isinstance(values, str):
+        try:
+            parsed = json.loads(values)
+        except json.JSONDecodeError:
+            return []
+    else:
+        parsed = values
+
+    if not isinstance(parsed, list):
+        return []
+
+    reviews: list[dict[str, object]] = []
+    for value in parsed:
+        if not isinstance(value, dict):
+            continue
+        content = str(value.get("content") or "").strip()
+        if not content:
+            continue
+        reviews.append(
+            {
+                "review_id": value.get("review_id"),
+                "author_name": str(value.get("author_name") or value.get("username") or "anonymous").strip(),
+                "username": str(value.get("username") or "").strip() or None,
+                "rating": value.get("rating"),
+                "content": content,
+                "updated_at": value.get("updated_at"),
+            }
+        )
+    return reviews
 
 
 if __name__ == "__main__":

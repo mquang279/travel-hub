@@ -1,37 +1,28 @@
 package edu.uet.travel_hub.infrastructure.config;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
-import com.nimbusds.jose.util.Base64;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationEntryPoint;
+import edu.uet.travel_hub.infrastructure.security.JwtAuthenticationFilter;
+import edu.uet.travel_hub.infrastructure.security.UserDetailCustom;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 
 @Configuration
 public class SecurityConfig {
-    @Value("${secret.key}")
-    private String secretKey;
-
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
@@ -45,14 +36,35 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public UserDetailCustom userDetailsService(UserJpaRepository userJpaRepository) {
+        return new UserDetailCustom(userJpaRepository);
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider(
+            UserDetailCustom userDetailsService,
+            PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(
+            HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http.csrf(c -> c.disable())
                 .cors(Customizer.withDefaults()) // Enable CORS
                 .authorizeHttpRequests(
                         (authz) -> authz
-                                .requestMatchers("/uploads/**").permitAll()
-                                .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh")
-                                .permitAll()
+                                .requestMatchers("/api/auth/register").permitAll()
+                                .requestMatchers("/api/auth/login").permitAll()
+                                .requestMatchers("/api/auth/refresh").permitAll()
                                 .requestMatchers("/api/auth/logout").authenticated()
                                 .requestMatchers("/api/users/me/dashboard").authenticated()
                                 .requestMatchers("/api/trips/**").authenticated()
@@ -69,8 +81,8 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.GET, "/api/places/recommendations").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/places/featured").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/places", "/api/places/*",
-                                        "/api/places/*/reviews").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/ai/travel-assistant/chat").permitAll()
+                                        "/api/places/*/reviews", "/api/places/*/reviews/summary")
+                                .permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/admin/places")
                                 .hasAuthority(Role.ADMIN.getDescription())
                                 .requestMatchers(HttpMethod.GET, "/api/admin/places/*")
@@ -80,44 +92,12 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.PUT, "/api/places/*/review").authenticated()
                                 .requestMatchers(HttpMethod.GET, "/api/users/me/place-view-history").authenticated()
                                 .anyRequest().authenticated())
-                .oauth2ResourceServer((oauth2) -> oauth2.jwt(
-                        jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
     }
 
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(getSecretKey())
-                .macAlgorithm(MacAlgorithm.HS256).build();
-
-        return (token) -> {
-            try {
-                return jwtDecoder.decode(token);
-            } catch (Exception e) {
-                throw e;
-            }
-        };
-    }
-
-    @Bean
-    public JwtEncoder jwtEncoder() {
-        return new NimbusJwtEncoder(new ImmutableSecret<>(getSecretKey()));
-    }
-
-    @Bean
-    public JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("");
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("authorities");
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-        return jwtAuthenticationConverter;
-    }
-
-    private SecretKey getSecretKey() {
-        byte[] keyBytes = Base64.from(secretKey).decode();
-        return new SecretKeySpec(keyBytes, MacAlgorithm.HS256.getName());
-    }
 }

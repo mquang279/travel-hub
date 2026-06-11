@@ -276,20 +276,6 @@ Request body: `PreferenceUpdateRequest`
 
 Response `200 OK`: `PreferenceResponse`
 
-### Upload Avatar
-
-`POST /api/users/me/avatar`
-
-Upload avatar image as multipart form-data.
-
-Form-data:
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `file` | file | yes | Avatar image file. |
-
-Response `200 OK`: plain string avatar URL.
-
 ## Follow
 
 Note: current controller uses `MOCK_CURRENT_USER_ID = 1L` instead of `CurrentUserProvider`.
@@ -831,11 +817,7 @@ Request body: `CreateTripRequest`
 }
 ```
 
-Response `201 Created`: created trip id as JSON number.
-
-```json
-1
-```
+Response `201 Created`: `TripDetailResponse` for the newly created trip.
 
 ### Update Trip
 

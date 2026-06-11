@@ -1,7 +1,7 @@
 package edu.uet.travel_hub.application.usecases;
 
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Service;
 
 import edu.uet.travel_hub.application.dto.request.RegisterRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;
@@ -13,6 +13,7 @@ import edu.uet.travel_hub.domain.enums.Role;
 import edu.uet.travel_hub.domain.exception.EmailAlreadyExistsException;
 import edu.uet.travel_hub.domain.exception.UsernameAlreadyExistsException;
 import edu.uet.travel_hub.domain.model.UserModel;
+import org.springframework.stereotype.Service;
 
 @Service
 public class RegisterService implements RegisterUseCase {
@@ -31,6 +32,7 @@ public class RegisterService implements RegisterUseCase {
     public AuthResponse register(RegisterRequest request) {
         String email = request.email() == null ? "" : request.email().trim();
         String username = request.username() == null ? "" : request.username().trim();
+        String name = request.name() == null ? "" : request.name().trim();
 
         if (this.userRepository.existsByEmail(email)) {
             throw new EmailAlreadyExistsException(email);
@@ -40,7 +42,7 @@ public class RegisterService implements RegisterUseCase {
         }
 
         String hashPassword = encoder.encode(request.password());
-        UserModel user = this.userRepository.register(email, username, hashPassword, Role.USER);
+        UserModel user = this.userRepository.register(email, username, name, hashPassword, Role.USER);
         String accessToken = this.tokenProvider.generateAccessToken(user);
         String refreshToken = this.tokenProvider.generateRefreshToken(user);
         this.userRepository.updateRefreshToken(user.getId(), refreshToken);

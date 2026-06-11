@@ -20,6 +20,18 @@ public interface TravelPlaceReviewJpaRepository extends JpaRepository<TravelPlac
     Page<TravelPlaceReviewEntity> findByPlaceIdOrderByUpdatedAtDescIdDesc(Long placeId, Pageable pageable);
 
     @EntityGraph(attributePaths = { "user" })
+    @Query("""
+            select r
+            from TravelPlaceReviewEntity r
+            where r.place.id = :placeId
+              and (:rating is null or r.rating = :rating)
+            """)
+    Page<TravelPlaceReviewEntity> findByPlaceIdAndOptionalRating(
+            @Param("placeId") Long placeId,
+            @Param("rating") Integer rating,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = { "user" })
     Optional<TravelPlaceReviewEntity> findByPlaceIdAndUserId(Long placeId, Long userId);
 
     @Query("""
@@ -39,4 +51,14 @@ public interface TravelPlaceReviewJpaRepository extends JpaRepository<TravelPlac
             group by r.place.id
             """)
     List<TravelPlaceReviewStatsProjection> getStatsByPlaceIds(@Param("placeIds") Collection<Long> placeIds);
+
+    @Query("""
+            select r.rating as rating,
+                   count(r) as reviewCount
+            from TravelPlaceReviewEntity r
+            where r.place.id = :placeId
+              and r.rating is not null
+            group by r.rating
+            """)
+    List<TravelPlaceReviewRatingCountProjection> getRatingCountsByPlaceId(@Param("placeId") Long placeId);
 }

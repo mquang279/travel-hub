@@ -4,7 +4,6 @@ import edu.uet.travel_hub.application.port.in.GetUserProfileUseCase;
 import edu.uet.travel_hub.application.port.in.GetLikedPostOfUserUseCase;
 import edu.uet.travel_hub.application.port.in.GetPostsOfUserUseCase;
 import edu.uet.travel_hub.application.port.in.GetSavedPostOfUserUseCase;
-import edu.uet.travel_hub.application.port.in.ChangePasswordUseCase;
 import edu.uet.travel_hub.application.port.in.SearchUsersUseCase;
 import edu.uet.travel_hub.application.port.in.UpdateProfileUseCase;
 import edu.uet.travel_hub.application.dto.response.PaginationResponse;
@@ -15,7 +14,6 @@ import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.usecases.UserPreferenceService;
 import edu.uet.travel_hub.application.usecases.TopTravelerService;
 import edu.uet.travel_hub.domain.dto.request.PreferenceUpdateRequest;
-import edu.uet.travel_hub.domain.dto.request.ChangePasswordRequest;
 import edu.uet.travel_hub.domain.dto.request.UpdateProfileRequest;
 import edu.uet.travel_hub.domain.dto.response.PreferenceResponse;
 import edu.uet.travel_hub.domain.dto.response.UserProfileResponse;
@@ -31,7 +29,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
@@ -44,7 +41,6 @@ public class UserController {
 	private final GetSavedPostOfUserUseCase getSavedPostOfUserUseCase;
 	private final SearchUsersUseCase searchUsersUseCase;
 	private final UpdateProfileUseCase updateProfileUseCase;
-	private final ChangePasswordUseCase changePasswordUseCase;
 	private final UserPreferenceService userPreferenceService;
 	private final TopTravelerService topTravelerService;
 	private final CurrentUserProvider currentUserProvider;
@@ -109,13 +105,6 @@ public class UserController {
 	public ResponseEntity<UserProfileResponse> updateMyProfile(@RequestBody UpdateProfileRequest request) {
 		Long currentUserId = currentUserProvider.getCurrentUserId();
 		return ResponseEntity.ok(updateProfileUseCase.updateProfile(currentUserId, request));
-	}
-
-	@PutMapping("/me/password")
-	public ResponseEntity<Void> changeMyPassword(@Valid @RequestBody ChangePasswordRequest request) {
-		Long currentUserId = currentUserProvider.getCurrentUserId();
-		changePasswordUseCase.changePassword(currentUserId, request);
-		return ResponseEntity.noContent().build();
 	}
 
 	@PutMapping("/{userId}")

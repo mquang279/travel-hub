@@ -55,6 +55,9 @@ public class UserEntity {
     @Email
     private String email;
 
+    @Column(name = "firebase_uid", unique = true)
+    private String firebaseUid;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 

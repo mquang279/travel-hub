@@ -1,7 +1,7 @@
 package edu.uet.travel_hub.application.usecases;
 
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Service;
 
 import edu.uet.travel_hub.application.dto.request.RefreshTokenRequest;
 import edu.uet.travel_hub.application.dto.response.AuthResponse;

@@ -33,6 +33,7 @@ import edu.uet.travel_hub.application.dto.response.ProvinceResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceDetailResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceImageResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceListItemResponse;
+import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewListSummaryResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewAuthorResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewResponse;
 import edu.uet.travel_hub.application.dto.response.TravelPlaceReviewSummaryResponse;
@@ -48,6 +49,7 @@ import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ProvinceJpaR
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceImageJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceReviewJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceReviewRatingCountProjection;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceReviewStatsProjection;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceViewHistoryJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
@@ -211,15 +213,48 @@ public class TravelPlaceService {
     }
 
     @Transactional(readOnly = true)
-    public PaginationResponse<TravelPlaceReviewResponse> getReviews(Long placeId, int page, int pageSize) {
+    public PaginationResponse<TravelPlaceReviewResponse> getReviews(
+            Long placeId,
+            int page,
+            int pageSize,
+            Integer rating,
+            String sort) {
         ensurePlaceExists(placeId);
+        Integer normalizedRating = normalizeReviewRatingFilter(rating);
 
-        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "updatedAt", "id"));
+        Pageable pageable = PageRequest.of(
+                Math.max(0, page),
+                Math.max(1, pageSize),
+                buildReviewSort(sort));
         Page<TravelPlaceReviewEntity> reviews = this.travelPlaceReviewJpaRepository
-                .findByPlaceIdOrderByUpdatedAtDescIdDesc(placeId, pageable);
+                .findByPlaceIdAndOptionalRating(placeId, normalizedRating, pageable);
 
         return new PaginationResponse<>(reviews.getNumber(), reviews.getSize(), reviews.getTotalPages(),
                 reviews.getTotalElements(), reviews.getContent().stream().map(this::toReviewResponse).toList());
+    }
+
+    @Transactional(readOnly = true)
+    public TravelPlaceReviewListSummaryResponse getReviewListSummary(Long placeId) {
+        ensurePlaceExists(placeId);
+
+        TravelPlaceReviewSummaryResponse summary = getReviewSummary(placeId);
+        Map<Integer, Long> ratingCounts = new LinkedHashMap<>();
+        for (int rating = 1; rating <= 5; rating++) {
+            ratingCounts.put(rating, 0L);
+        }
+
+        for (TravelPlaceReviewRatingCountProjection count : this.travelPlaceReviewJpaRepository
+                .getRatingCountsByPlaceId(placeId)) {
+            Integer rating = count.getRating();
+            if (rating != null && rating >= 1 && rating <= 5) {
+                ratingCounts.put(rating, count.getReviewCount() == null ? 0L : count.getReviewCount());
+            }
+        }
+
+        return new TravelPlaceReviewListSummaryResponse(
+                summary.averageRating(),
+                summary.reviewCount(),
+                ratingCounts);
     }
 
     @Transactional
@@ -383,9 +418,11 @@ public class TravelPlaceService {
         String mainImage = images.stream()
                 .filter(TravelPlaceImageResponse::main)
                 .map(TravelPlaceImageResponse::imageUrl)
+                .filter(url -> url != null && !url.isBlank())
                 .findFirst()
                 .orElseGet(() -> images.stream()
                         .map(TravelPlaceImageResponse::imageUrl)
+                        .filter(url -> url != null && !url.isBlank())
                         .findFirst()
                         .orElse(null));
         return new TravelPlaceListItemResponse(
@@ -434,6 +471,34 @@ public class TravelPlaceService {
 
     private TravelPlaceReviewSummaryResponse emptyReviewSummary() {
         return new TravelPlaceReviewSummaryResponse(0.0, 0L);
+    }
+
+    private Integer normalizeReviewRatingFilter(Integer rating) {
+        if (rating == null) {
+            return null;
+        }
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Rating filter must be between 1 and 5");
+        }
+        return rating;
+    }
+
+    private Sort buildReviewSort(String sort) {
+        String normalizedSort = sort == null || sort.isBlank() ? "NEWEST" : sort.trim().toUpperCase();
+        return switch (normalizedSort) {
+            case "NEWEST" -> Sort.by(
+                    Sort.Order.desc("updatedAt"),
+                    Sort.Order.desc("id"));
+            case "RATING_HIGH" -> Sort.by(
+                    Sort.Order.desc("rating"),
+                    Sort.Order.desc("updatedAt"),
+                    Sort.Order.desc("id"));
+            case "RATING_LOW" -> Sort.by(
+                    Sort.Order.asc("rating"),
+                    Sort.Order.desc("updatedAt"),
+                    Sort.Order.desc("id"));
+            default -> throw new IllegalArgumentException("Unsupported review sort: " + sort);
+        };
     }
 
     private TravelPlaceReviewResponse toReviewResponse(TravelPlaceReviewEntity review) {

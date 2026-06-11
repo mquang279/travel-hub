@@ -1,10 +1,9 @@
 package edu.uet.travel_hub.application.usecases;
 
-import org.springframework.stereotype.Service;
-
 import edu.uet.travel_hub.application.port.in.LogoutUseCase;
 import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.domain.model.UserModel;
+import org.springframework.stereotype.Service;
 
 @Service
 public class LogoutService implements LogoutUseCase {

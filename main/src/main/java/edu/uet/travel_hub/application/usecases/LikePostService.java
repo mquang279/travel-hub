@@ -36,8 +36,8 @@ public class LikePostService implements LikePostUseCase {
             this.postRepository.increaseLikeCount(postId);
 
             if (!userId.equals(postModel.getUserId())) {
-                String title = "New like on your post";
-                String body = likedByUser.getUsername() + " liked your post";
+                String title = "Lượt like bài đăng mới";
+                String body = likedByUser.getUsername() + " đã thích bài đăng của bạn";
                 this.saveNotificationService.save(postModel.getUserId(), title, body, NotificationType.LIKE, postId);
             }
         }

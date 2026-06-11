@@ -9,7 +9,7 @@ import edu.uet.travel_hub.domain.model.UserModel;
 public interface UserRepository {
     UserModel save(UserModel user);
 
-    UserModel register(String email, String username, String password, Role role);
+    UserModel register(String email, String username, String name, String password, Role role);
 
     Optional<UserModel> findById(Long id);
 

@@ -15,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Index;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -29,6 +30,9 @@ import lombok.ToString;
 @Entity
 @Table(
         name = "trip_days",
+        indexes = {
+                @Index(name = "idx_trip_days_trip_id_date_id", columnList = "trip_id, date, id")
+        },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_trip_day_trip_date", columnNames = {"trip_id", "date"})
         })

@@ -27,7 +27,7 @@ class ItineraryService:
                 continue
             model = ChatGoogleGenerativeAI(
                 api_key=cleaned_key,
-                model="gemini-3.1-flash-lite-preview",  # gemini-flash-lite-latest"
+                model="gemini-3.5-flash",  # gemini-flash-lite-latest"
             )
             self.agents[cleaned_key] = create_agent(
                 model=model,
@@ -134,9 +134,13 @@ Destination: {payload.destination}
 Current itinerary JSON:
 {payload.itinerary.model_dump_json()}
 """
-        result = await agent.ainvoke({"messages": [{"role": "user", "content": instruction}]})
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": instruction}]}
+        )
         content = self._extract_agent_text(result)
-        proposal = ItineraryAiProposalResponse.model_validate_json(self._extract_json_object(content))
+        proposal = ItineraryAiProposalResponse.model_validate_json(
+            self._extract_json_object(content)
+        )
         if not proposal.changes:
             raise ValueError("LLM returned an empty proposal")
         return proposal
@@ -150,7 +154,14 @@ Current itinerary JSON:
                 if isinstance(content, str):
                     return content
                 if isinstance(content, list):
-                    return "".join(str(part.get("text", "")) if isinstance(part, dict) else str(part) for part in content)
+                    return "".join(
+                        (
+                            str(part.get("text", ""))
+                            if isinstance(part, dict)
+                            else str(part)
+                        )
+                        for part in content
+                    )
         return str(result)
 
     def _extract_json_object(self, content: str) -> str:
@@ -178,27 +189,51 @@ Current itinerary JSON:
         should_generate = (
             payload.task == "GENERATE_ITINERARY"
             or not itinerary.days
-            or any(token in normalized_prompt for token in ["generate", "tạo", "tao", "lập", "lap"])
+            or any(
+                token in normalized_prompt
+                for token in ["generate", "tạo", "tao", "lập", "lap"]
+            )
         )
         if should_generate:
             changes.extend(self._build_generate_days(payload))
         else:
-            if any(token in normalized_prompt for token in ["xóa", "xoa", "delete", "remove", "bỏ", "bo"]):
+            if any(
+                token in normalized_prompt
+                for token in ["xóa", "xoa", "delete", "remove", "bỏ", "bo"]
+            ):
                 delete_change = self._build_delete_event_change(selected_day)
                 if delete_change is not None:
                     changes.append(delete_change)
 
-            if any(token in normalized_prompt for token in ["chuyển", "chuyen", "move", "dời", "doi ngay"]):
+            if any(
+                token in normalized_prompt
+                for token in ["chuyển", "chuyen", "move", "dời", "doi ngay"]
+            ):
                 move_change = self._build_move_event_change(payload, selected_day)
                 if move_change is not None:
                     changes.append(move_change)
 
-            if any(token in normalized_prompt for token in ["sửa", "sua", "đổi", "doi", "edit", "reschedule", "muộn", "sớm"]):
+            if any(
+                token in normalized_prompt
+                for token in [
+                    "sửa",
+                    "sua",
+                    "đổi",
+                    "doi",
+                    "edit",
+                    "reschedule",
+                    "muộn",
+                    "sớm",
+                ]
+            ):
                 update_change = self._build_update_event_change(selected_day)
                 if update_change is not None:
                     changes.append(update_change)
 
-            if any(token in normalized_prompt for token in ["thêm", "them", "add", "cafe", "coffee", "ăn", "an"]):
+            if any(
+                token in normalized_prompt
+                for token in ["thêm", "them", "add", "cafe", "coffee", "ăn", "an"]
+            ):
                 changes.append(self._build_add_event_change(payload, selected_day))
 
         if not changes:
@@ -211,16 +246,28 @@ Current itinerary JSON:
             changes=changes,
         )
 
-    def _selected_day(self, payload: ItineraryAiProposalRequest) -> ItineraryDayPayload | None:
+    def _selected_day(
+        self, payload: ItineraryAiProposalRequest
+    ) -> ItineraryDayPayload | None:
         itinerary = payload.itinerary
         if not itinerary.days:
             return None
         if payload.selected_day_id is not None:
-            match = next((day for day in itinerary.days if day.id == payload.selected_day_id), None)
+            match = next(
+                (day for day in itinerary.days if day.id == payload.selected_day_id),
+                None,
+            )
             if match is not None:
                 return match
         if payload.selected_day_index is not None:
-            match = next((day for day in itinerary.days if day.day_index == payload.selected_day_index), None)
+            match = next(
+                (
+                    day
+                    for day in itinerary.days
+                    if day.day_index == payload.selected_day_index
+                ),
+                None,
+            )
             if match is not None:
                 return match
         return itinerary.days[0]
@@ -230,7 +277,9 @@ Current itinerary JSON:
         payload: ItineraryAiProposalRequest,
     ) -> list[ItineraryAiChangePayload]:
         day_count = min(max(payload.desired_days or 3, 1), 7)
-        destination = payload.destination or payload.itinerary.group_name or "the destination"
+        destination = (
+            payload.destination or payload.itinerary.group_name or "the destination"
+        )
         themes = [
             ("Arrival and highlights", "Museum", "Local food walk"),
             ("Culture and neighborhoods", "PhotoCamera", "Old quarter stroll"),
@@ -322,7 +371,9 @@ Current itinerary JSON:
             stop_after=stop,
         )
 
-    def _build_update_event_change(self, selected_day: ItineraryDayPayload | None) -> ItineraryAiChangePayload | None:
+    def _build_update_event_change(
+        self, selected_day: ItineraryDayPayload | None
+    ) -> ItineraryAiChangePayload | None:
         if selected_day is None or not selected_day.stops:
             return None
         before = selected_day.stops[0]
@@ -342,7 +393,9 @@ Current itinerary JSON:
             stop_after=after,
         )
 
-    def _build_delete_event_change(self, selected_day: ItineraryDayPayload | None) -> ItineraryAiChangePayload | None:
+    def _build_delete_event_change(
+        self, selected_day: ItineraryDayPayload | None
+    ) -> ItineraryAiChangePayload | None:
         if selected_day is None or not selected_day.stops:
             return None
         before = selected_day.stops[-1]
@@ -397,7 +450,9 @@ Current itinerary JSON:
     ) -> str:
         if any(change.type == "ADD_DAY" for change in changes):
             return f"Generated a {len(changes)}-day itinerary draft from your request."
-        return f"Prepared {len(changes)} reviewable itinerary change(s) from your request."
+        return (
+            f"Prepared {len(changes)} reviewable itinerary change(s) from your request."
+        )
 
 
 def new_itinerary_service() -> ItineraryService:
