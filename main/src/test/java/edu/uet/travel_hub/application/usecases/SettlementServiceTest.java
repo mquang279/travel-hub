@@ -80,29 +80,29 @@ class SettlementServiceTest {
     }
 
     @Test
-    void generateSettlements_matchesDebtorsToCreditorsFromExpenseSplits() {
+    void generateSettlements_createsPaymentsFromMembersToLeaderForTheirSplitShares() {
         when(settlementJpaRepository.existsByTripId(12L)).thenReturn(false);
         when(expenseSplitJpaRepository.findByExpenseTripId(12L)).thenReturn(List.of(
                 split(expense(101L, userA, "900000"), userA, "300000"),
                 split(expense(101L, userA, "900000"), userB, "300000"),
                 split(expense(101L, userA, "900000"), userC, "300000"),
-                split(expense(102L, userB, "300000"), userA, "100000"),
-                split(expense(102L, userB, "300000"), userB, "100000"),
-                split(expense(102L, userB, "300000"), userC, "100000")));
+                split(expense(102L, userA, "300000"), userA, "100000"),
+                split(expense(102L, userA, "300000"), userB, "100000"),
+                split(expense(102L, userA, "300000"), userC, "100000")));
 
         var result = settlementService.generateSettlements(trip);
 
         assertThat(result).hasSize(2);
         assertThat(result).anySatisfy(settlement -> {
-            assertThat(settlement.fromUserId()).isEqualTo(3L);
+            assertThat(settlement.fromUserId()).isEqualTo(2L);
             assertThat(settlement.toUserId()).isEqualTo(1L);
             assertThat(settlement.amount()).isEqualByComparingTo(new BigDecimal("400000"));
             assertThat(settlement.transferContent()).startsWith("TRIP-12-SETTLEMENT-");
         });
         assertThat(result).anySatisfy(settlement -> {
-            assertThat(settlement.fromUserId()).isEqualTo(2L);
+            assertThat(settlement.fromUserId()).isEqualTo(3L);
             assertThat(settlement.toUserId()).isEqualTo(1L);
-            assertThat(settlement.amount()).isEqualByComparingTo(new BigDecimal("100000"));
+            assertThat(settlement.amount()).isEqualByComparingTo(new BigDecimal("400000"));
         });
     }
 

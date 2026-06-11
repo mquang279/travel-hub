@@ -2,10 +2,9 @@ package edu.uet.travel_hub.application.usecases;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +23,6 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.ExpenseSplitEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.PaymentProofEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.SettlementEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
-import edu.uet.travel_hub.infrastructure.persistence.entity.TripExpenseEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.BankAccountJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.ExpenseSplitJpaRepository;
@@ -73,45 +71,22 @@ public class SettlementService {
             return listSettlements(trip.getId(), trip.getLeader().getId());
         }
 
-        Map<Long, BigDecimal> balances = calculateBalances(trip.getId());
-        List<Balance> debtors = balances.entrySet().stream()
-                .filter(entry -> entry.getValue().compareTo(BigDecimal.ZERO) < 0)
-                .map(entry -> new Balance(entry.getKey(), entry.getValue().abs()))
-                .sorted(Comparator.comparing(Balance::amount).reversed())
-                .toList();
-        List<Balance> creditors = balances.entrySet().stream()
-                .filter(entry -> entry.getValue().compareTo(BigDecimal.ZERO) > 0)
-                .map(entry -> new Balance(entry.getKey(), entry.getValue()))
-                .sorted(Comparator.comparing(Balance::amount).reversed())
-                .toList();
-
         List<SettlementEntity> created = new ArrayList<>();
-        int debtorIndex = 0;
-        int creditorIndex = 0;
-        List<Balance> mutableDebtors = new ArrayList<>(debtors);
-        List<Balance> mutableCreditors = new ArrayList<>(creditors);
-        while (debtorIndex < mutableDebtors.size() && creditorIndex < mutableCreditors.size()) {
-            Balance debtor = mutableDebtors.get(debtorIndex);
-            Balance creditor = mutableCreditors.get(creditorIndex);
-            BigDecimal amount = debtor.amount().min(creditor.amount());
-            if (amount.compareTo(BigDecimal.ZERO) > 0) {
+        Long leaderUserId = trip.getLeader().getId();
+        Map<Long, BigDecimal> memberOwedAmounts = calculateMemberOwedAmounts(trip.getId(), leaderUserId);
+        for (Map.Entry<Long, BigDecimal> entry : memberOwedAmounts.entrySet()) {
+            Long memberUserId = entry.getKey();
+            BigDecimal amount = entry.getValue();
+            if (amount.compareTo(BigDecimal.ZERO) > 0 && !memberUserId.equals(leaderUserId)) {
                 SettlementEntity settlement = this.settlementJpaRepository.save(SettlementEntity.builder()
                         .trip(trip)
-                        .fromUser(this.tripService.findUser(debtor.userId()))
-                        .toUser(this.tripService.findUser(creditor.userId()))
+                        .fromUser(this.tripService.findUser(memberUserId))
+                        .toUser(trip.getLeader())
                         .amount(amount)
-                        .status(initialStatus(creditor.userId()))
+                        .status(initialStatus(leaderUserId))
                         .build());
                 settlement.setTransferContent("TRIP-" + trip.getId() + "-SETTLEMENT-" + settlement.getId());
                 created.add(this.settlementJpaRepository.save(settlement));
-            }
-            mutableDebtors.set(debtorIndex, new Balance(debtor.userId(), debtor.amount().subtract(amount)));
-            mutableCreditors.set(creditorIndex, new Balance(creditor.userId(), creditor.amount().subtract(amount)));
-            if (mutableDebtors.get(debtorIndex).amount().compareTo(BigDecimal.ZERO) == 0) {
-                debtorIndex++;
-            }
-            if (mutableCreditors.get(creditorIndex).amount().compareTo(BigDecimal.ZERO) == 0) {
-                creditorIndex++;
             }
         }
         return created.stream().map(this::toResponse).toList();
@@ -173,19 +148,16 @@ public class SettlementService {
         return toResponse(this.settlementJpaRepository.save(settlement));
     }
 
-    private Map<Long, BigDecimal> calculateBalances(Long tripId) {
+    private Map<Long, BigDecimal> calculateMemberOwedAmounts(Long tripId, Long leaderUserId) {
         List<ExpenseSplitEntity> splits = this.expenseSplitJpaRepository.findByExpenseTripId(tripId);
-        Map<Long, BigDecimal> balances = new HashMap<>();
-        Map<Long, TripExpenseEntity> expensesWithSplits = new HashMap<>();
+        Map<Long, BigDecimal> owedAmounts = new LinkedHashMap<>();
         for (ExpenseSplitEntity split : splits) {
             Long userId = split.getUser().getId();
-            balances.merge(userId, split.getAmount().negate(), BigDecimal::add);
-            expensesWithSplits.put(split.getExpense().getId(), split.getExpense());
+            if (!userId.equals(leaderUserId)) {
+                owedAmounts.merge(userId, split.getAmount(), BigDecimal::add);
+            }
         }
-        for (TripExpenseEntity expense : expensesWithSplits.values()) {
-            balances.merge(expense.getPaidBy().getId(), expense.getAmount(), BigDecimal::add);
-        }
-        return balances;
+        return owedAmounts;
     }
 
     private SettlementEntity findSettlementForParticipant(Long settlementId, Long currentUserId) {
@@ -231,8 +203,5 @@ public class SettlementService {
                 settlement.getStatus(),
                 settlement.getTransferContent(),
                 receiver);
-    }
-
-    private record Balance(Long userId, BigDecimal amount) {
     }
 }

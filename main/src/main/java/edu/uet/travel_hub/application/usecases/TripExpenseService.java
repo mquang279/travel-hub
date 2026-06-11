@@ -139,10 +139,9 @@ public class TripExpenseService {
 
     @Transactional
     public TripExpenseTransactionResponse addExpense(Long tripId, Long currentUserId, CreateTripExpenseRequest request) {
-        TripEntity trip = this.tripService.requireActiveMemberTrip(tripId, currentUserId);
+        TripEntity trip = this.tripService.requireLeaderTrip(tripId, currentUserId);
         requireTripNotCompleted(trip);
-        UserEntity paidBy = this.tripService.findUser(request.paidByUserId());
-        requireActiveMember(tripId, request.paidByUserId(), "Paid-by user must be an active member");
+        UserEntity paidBy = trip.getLeader();
         BigDecimal amount = normalizeAmount(request.totalAmount(), request.amount());
         Map<Long, BigDecimal> splitAmounts = normalizeSplitAmounts(
                 tripId,
@@ -188,13 +187,11 @@ public class TripExpenseService {
             Long expenseId,
             Long currentUserId,
             UpdateTripExpenseRequest request) {
-        this.tripService.requireActiveMemberTrip(tripId, currentUserId);
-        TripEntity trip = this.tripService.findTrip(tripId);
+        TripEntity trip = this.tripService.requireLeaderTrip(tripId, currentUserId);
         requireTripNotCompleted(trip);
         TripExpenseEntity expense = this.tripExpenseJpaRepository.findByIdAndTripId(expenseId, tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
-        UserEntity paidBy = this.tripService.findUser(request.paidByUserId());
-        requireActiveMember(tripId, request.paidByUserId(), "Paid-by user must be an active member");
+        UserEntity paidBy = trip.getLeader();
         BigDecimal amount = normalizeAmount(request.totalAmount(), request.amount());
         Map<Long, BigDecimal> splitAmounts = normalizeSplitAmounts(
                 tripId,
@@ -234,7 +231,7 @@ public class TripExpenseService {
 
     @Transactional
     public void deleteExpense(Long tripId, Long expenseId, Long currentUserId) {
-        TripEntity trip = this.tripService.requireActiveMemberTrip(tripId, currentUserId);
+        TripEntity trip = this.tripService.requireLeaderTrip(tripId, currentUserId);
         requireTripNotCompleted(trip);
         TripExpenseEntity expense = this.tripExpenseJpaRepository.findByIdAndTripId(expenseId, tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
