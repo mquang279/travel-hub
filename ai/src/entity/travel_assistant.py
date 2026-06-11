@@ -15,6 +15,7 @@ class TravelAssistantPlaceReference(BaseModel):
     id: int
     name: str
     province: str | None = None
+    main_image: str | None = None
     average_rating: float | None = None
     review_count: int = 0
 
@@ -34,6 +35,7 @@ class TravelAssistantPlaceSearchItem(BaseModel):
     id: int
     name: str
     province: str | None = None
+    main_image: str | None = None
     average_rating: float | None = None
     review_count: int = 0
     score: float = 0.0

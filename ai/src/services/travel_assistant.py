@@ -137,7 +137,11 @@ class TravelAssistantService:
             }
         )
         answer = self._extract_agent_text(result)
-        places = [self._to_reference(row) for row in retrieval_rows]
+        places = self._select_places_for_response(
+            query=self._latest_user_input(payload.message),
+            answer=answer,
+            rows=retrieval_rows,
+        )
         return TravelAssistantChatResponse(answer=answer, places=places)
 
     async def _chat_with_agent_stream(
@@ -190,7 +194,11 @@ class TravelAssistantService:
             "final",
             TravelAssistantChatResponse(
                 answer=answer,
-                places=[self._to_reference(row) for row in retrieval_rows],
+                places=self._select_places_for_response(
+                    query=self._latest_user_input(payload.message),
+                    answer=answer,
+                    rows=retrieval_rows,
+                ),
             ).model_dump(),
         )
 
@@ -391,6 +399,13 @@ class TravelAssistantService:
                     sp.opening_time,
                     sp.views,
                     sp.province,
+                    (
+                        SELECT tpi.image_url
+                        FROM travel_place_images tpi
+                        WHERE tpi.place_id = sp.id
+                        ORDER BY tpi.is_main DESC, tpi.id ASC
+                        LIMIT 1
+                    ) AS main_image,
                     COALESCE(AVG(tpr.rating), 0) AS average_rating,
                     COUNT(tpr.id) AS review_count,
                     CASE
@@ -657,6 +672,13 @@ class TravelAssistantService:
                     tp.lon,
                     tp.views,
                     p.name AS province,
+                    (
+                        SELECT tpi.image_url
+                        FROM travel_place_images tpi
+                        WHERE tpi.place_id = tp.id
+                        ORDER BY tpi.is_main DESC, tpi.id ASC
+                        LIMIT 1
+                    ) AS main_image,
                     COALESCE(AVG(tpr.rating), 0) AS average_rating,
                     COUNT(tpr.id) AS review_count
                 FROM travel_places tp
@@ -716,9 +738,62 @@ class TravelAssistantService:
             id=row["id"],
             name=row["name"],
             province=row.get("province"),
+            main_image=row.get("main_image"),
             average_rating=round(float(rating), 2) if rating is not None else None,
             review_count=int(row.get("review_count") or 0),
         )
+
+    def _select_places_for_response(
+        self,
+        query: str,
+        answer: str,
+        rows: list[dict[str, Any]],
+    ) -> list[TravelAssistantPlaceReference]:
+        if not rows:
+            return []
+
+        if self._needs_place_suggestions(query):
+            return [self._to_reference(row) for row in rows]
+
+        mentioned_rows = [
+            row for row in rows
+            if self._answer_mentions_place(answer=answer, place_name=str(row.get("name") or ""))
+        ]
+        return [self._to_reference(row) for row in mentioned_rows]
+
+    def _needs_place_suggestions(self, query: str) -> bool:
+        normalized = self._normalize_vietnamese(query)
+        if not normalized:
+            return False
+
+        intent_phrases = (
+            "goi y",
+            "de xuat",
+            "khuyen nghi",
+            "nen di dau",
+            "di dau",
+            "choi dau",
+            "an dau",
+            "dia diem nao",
+            "tim dia diem",
+            "tim cho",
+            "review dia diem",
+            "xem review",
+            "lich trinh",
+            "ke hoach",
+            "tham quan",
+            "du lich o dau",
+            "cuoi tuan nay di dau",
+            "co dia diem nao",
+        )
+        return any(phrase in normalized for phrase in intent_phrases)
+
+    def _answer_mentions_place(self, answer: str, place_name: str) -> bool:
+        normalized_answer = self._normalize_vietnamese(answer)
+        normalized_place = self._normalize_vietnamese(place_name)
+        if not normalized_answer or not normalized_place:
+            return False
+        return normalized_place in normalized_answer
 
     def _extract_agent_text(self, result: Any) -> str:
         if isinstance(result, dict):
