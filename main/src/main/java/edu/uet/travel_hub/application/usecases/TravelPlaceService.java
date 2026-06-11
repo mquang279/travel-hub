@@ -418,9 +418,11 @@ public class TravelPlaceService {
         String mainImage = images.stream()
                 .filter(TravelPlaceImageResponse::main)
                 .map(TravelPlaceImageResponse::imageUrl)
+                .filter(url -> url != null && !url.isBlank())
                 .findFirst()
                 .orElseGet(() -> images.stream()
                         .map(TravelPlaceImageResponse::imageUrl)
+                        .filter(url -> url != null && !url.isBlank())
                         .findFirst()
                         .orElse(null));
         return new TravelPlaceListItemResponse(
