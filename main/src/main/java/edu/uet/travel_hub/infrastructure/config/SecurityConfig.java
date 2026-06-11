@@ -65,6 +65,7 @@ public class SecurityConfig {
                                 .requestMatchers("/api/auth/register").permitAll()
                                 .requestMatchers("/api/auth/login").permitAll()
                                 .requestMatchers("/api/auth/refresh").permitAll()
+                                .requestMatchers("/uploads/**").permitAll()
                                 .requestMatchers("/api/auth/logout").authenticated()
                                 .requestMatchers("/api/users/me/dashboard").authenticated()
                                 .requestMatchers("/api/trips/**").authenticated()
