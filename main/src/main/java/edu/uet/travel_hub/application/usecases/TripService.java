@@ -16,8 +16,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
+import edu.uet.travel_hub.application.dto.request.CreateTripPostRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
+import edu.uet.travel_hub.application.dto.response.PaginationResponse;
+import edu.uet.travel_hub.application.dto.response.TripPhotoResponse;
 import edu.uet.travel_hub.application.dto.response.TripActivityItemResponse;
 import edu.uet.travel_hub.application.dto.response.TripActivityLogResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
@@ -40,13 +43,18 @@ import edu.uet.travel_hub.infrastructure.persistence.entity.TripPollEntity;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.PollVoteCount;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.TripMemberEntity;
+import edu.uet.travel_hub.infrastructure.persistence.entity.TripPhotoEntity;
 import edu.uet.travel_hub.infrastructure.persistence.entity.UserEntity;
+import edu.uet.travel_hub.domain.model.PostModel;
+import edu.uet.travel_hub.application.port.out.PostRepository;
+import edu.uet.travel_hub.application.port.out.UserRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripExpenseJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripActivityLogJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPollVoteJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripMemberJpaRepository;
+import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TripPhotoJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.TravelPlaceImageJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.UserJpaRepository;
 import edu.uet.travel_hub.infrastructure.persistence.repository.jpa.BankAccountJpaRepository;
@@ -62,10 +70,13 @@ public class TripService {
     private final TripPollJpaRepository tripPollJpaRepository;
     private final TripPollVoteJpaRepository tripPollVoteJpaRepository;
     private final TripActivityLogJpaRepository tripActivityLogJpaRepository;
+    private final TripPhotoJpaRepository tripPhotoJpaRepository;
     private final TravelPlaceImageJpaRepository travelPlaceImageJpaRepository;
     private final BankAccountJpaRepository bankAccountJpaRepository;
     private final TripActivityLogService tripActivityLogService;
     private final edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService;
+    private final PostRepository postRepository;
+    private final UserRepository userRepository;
 
     public TripService(
             TripJpaRepository tripJpaRepository,
@@ -75,10 +86,13 @@ public class TripService {
             TripPollJpaRepository tripPollJpaRepository,
             TripPollVoteJpaRepository tripPollVoteJpaRepository,
             TripActivityLogJpaRepository tripActivityLogJpaRepository,
+            TripPhotoJpaRepository tripPhotoJpaRepository,
             TravelPlaceImageJpaRepository travelPlaceImageJpaRepository,
             BankAccountJpaRepository bankAccountJpaRepository,
             TripActivityLogService tripActivityLogService,
-            edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService) {
+            edu.uet.travel_hub.application.service.InviteCodeService inviteCodeService,
+            PostRepository postRepository,
+            UserRepository userRepository) {
         this.tripJpaRepository = tripJpaRepository;
         this.tripMemberJpaRepository = tripMemberJpaRepository;
         this.userJpaRepository = userJpaRepository;
@@ -86,10 +100,13 @@ public class TripService {
         this.tripPollJpaRepository = tripPollJpaRepository;
         this.tripPollVoteJpaRepository = tripPollVoteJpaRepository;
         this.tripActivityLogJpaRepository = tripActivityLogJpaRepository;
+        this.tripPhotoJpaRepository = tripPhotoJpaRepository;
         this.travelPlaceImageJpaRepository = travelPlaceImageJpaRepository;
         this.bankAccountJpaRepository = bankAccountJpaRepository;
         this.tripActivityLogService = tripActivityLogService;
         this.inviteCodeService = inviteCodeService;
+        this.postRepository = postRepository;
+        this.userRepository = userRepository;
     }
 
     public TripEntity findTrip(Long tripId) {
@@ -144,13 +161,38 @@ public class TripService {
             .map(trip -> toUpcomingTrip(trip, today))
             .toList();
 
-        List<TripDashboardResponse.PastTripResponse> pastTrips = memberTrips.stream()
+        return new TripDashboardResponse(activeTrip, upcomingTrips, List.of());
+    }
+
+    @Transactional(readOnly = true)
+    public PaginationResponse<TripDashboardResponse.PastTripResponse> getPastTrips(
+            Long currentUserId,
+            int page,
+            int pageSize) {
+        int safePage = Math.max(0, page);
+        int safePageSize = Math.min(Math.max(1, pageSize), 50);
+        List<TripDashboardResponse.PastTripResponse> pastTrips = this.tripJpaRepository
+            .findDistinctByMembersUserIdOrderByStartDateAsc(currentUserId)
+            .stream()
+            .filter(trip -> isActiveMember(trip, currentUserId))
             .filter(trip -> resolveDashboardStatus(trip) == TripStatus.COMPLETED)
             .sorted((left, right) -> compareNullableDatesDesc(left.getEndDate(), right.getEndDate()))
             .map(this::toPastTrip)
             .toList();
 
-        return new TripDashboardResponse(activeTrip, upcomingTrips, pastTrips);
+        int totalElements = pastTrips.size();
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / safePageSize);
+        int fromIndex = safePage * safePageSize;
+        List<TripDashboardResponse.PastTripResponse> pageData = fromIndex >= totalElements
+                ? List.of()
+                : pastTrips.subList(fromIndex, Math.min(fromIndex + safePageSize, totalElements));
+
+        return new PaginationResponse<>(
+                safePage,
+                safePageSize,
+                totalPages,
+                (long) totalElements,
+                pageData);
     }
 
     @Transactional(readOnly = true)
@@ -191,7 +233,8 @@ public class TripService {
             trip.getStatus(),
             trip.getInviteCode(),
             DEFAULT_MAX_MEMBERS,
-            getTripImageUrls(trip));
+            getTripImageUrls(trip),
+            getTripPhotoUrls(trip.getId()));
 
         TripRole myRole = TripRoleMapper.fromMemberRole(membership.getRole());
         return new TripDetailResponse(tripInfo, myRole.name(), members, highlights, recentActivities);
@@ -290,7 +333,66 @@ public class TripService {
             trip.getStatus(),
             trip.getInviteCode(),
             DEFAULT_MAX_MEMBERS,
-            getTripImageUrls(trip));
+            getTripImageUrls(trip),
+            getTripPhotoUrls(trip.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripPhotoResponse> getTripPhotos(Long tripId, Long currentUserId) {
+        requireActiveMemberTrip(tripId, currentUserId);
+        return this.tripPhotoJpaRepository.findByTripIdOrderByUploadedAtDescIdDesc(tripId)
+                .stream()
+                .map(this::toTripPhotoResponse)
+                .toList();
+    }
+
+    @Transactional
+    public List<TripPhotoResponse> addTripPhotos(Long tripId, Long currentUserId, List<String> imageUrls) {
+        TripEntity trip = requireActiveMemberTrip(tripId, currentUserId);
+        UserEntity uploader = findUser(currentUserId);
+        List<String> sanitizedUrls = sanitizeImageUrls(imageUrls);
+        if (sanitizedUrls.isEmpty()) {
+            throw new IllegalArgumentException("imageUrls is required");
+        }
+
+        sanitizedUrls.stream()
+                .map(imageUrl -> TripPhotoEntity.builder()
+                        .trip(trip)
+                        .uploadedBy(uploader)
+                        .imageUrl(imageUrl)
+                        .build())
+                .forEach(this.tripPhotoJpaRepository::save);
+        this.tripActivityLogService.log(trip, uploader, "ADD_TRIP_PHOTOS", "TRIP", tripId, "trip photos added");
+        return getTripPhotos(tripId, currentUserId);
+    }
+
+    @Transactional
+    public PostModel publishTripPost(Long tripId, Long currentUserId, CreateTripPostRequest request) {
+        TripEntity trip = requireLeaderTrip(tripId, currentUserId);
+        if (resolveDashboardStatus(trip) != TripStatus.COMPLETED) {
+            throw new IllegalStateException("Trip must be completed before publishing a post");
+        }
+
+        List<String> photoUrls = getTripPhotoUrls(tripId);
+        if (photoUrls.isEmpty()) {
+            throw new IllegalStateException("Trip has no uploaded photos");
+        }
+
+        String description = request == null ? null : request.description();
+        String normalizedDescription = description == null || description.isBlank()
+                ? buildDefaultTripPostDescription(trip)
+                : description.trim();
+
+        PostModel post = PostModel.builder()
+                .description(normalizedDescription)
+                .imageUrls(photoUrls)
+                .travelPlaceId(trip.getPlaceId())
+                .userId(currentUserId)
+                .build();
+        PostModel savedPost = this.postRepository.save(currentUserId, post);
+        this.userRepository.incrementPosts(currentUserId);
+        this.tripActivityLogService.log(trip, trip.getLeader(), "PUBLISH_TRIP_POST", "POST", savedPost.getId(), "trip post published");
+        return savedPost;
     }
 
     private List<String> getTripImageUrls(TripEntity trip) {
@@ -305,6 +407,42 @@ public class TripService {
             .filter(imageUrl -> imageUrl != null && !imageUrl.isBlank())
             .distinct()
             .toList();
+    }
+
+    private List<String> getTripPhotoUrls(Long tripId) {
+        return this.tripPhotoJpaRepository.findByTripIdOrderByUploadedAtDescIdDesc(tripId)
+                .stream()
+                .map(TripPhotoEntity::getImageUrl)
+                .filter(imageUrl -> imageUrl != null && !imageUrl.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private List<String> sanitizeImageUrls(List<String> imageUrls) {
+        if (imageUrls == null) {
+            return List.of();
+        }
+        return imageUrls.stream()
+                .map(imageUrl -> imageUrl == null ? "" : imageUrl.trim())
+                .filter(imageUrl -> !imageUrl.isBlank())
+                .distinct()
+                .limit(30)
+                .toList();
+    }
+
+    private TripPhotoResponse toTripPhotoResponse(TripPhotoEntity photo) {
+        UserEntity uploader = photo.getUploadedBy();
+        return new TripPhotoResponse(
+                photo.getId(),
+                photo.getImageUrl(),
+                uploader == null ? null : uploader.getId(),
+                uploader == null ? null : displayName(uploader),
+                photo.getUploadedAt());
+    }
+
+    private String buildDefaultTripPostDescription(TripEntity trip) {
+        String dateRange = buildDateRange(trip.getStartDate(), trip.getEndDate());
+        return "Nhìn lại chuyến đi " + trip.getName() + " tại " + trip.getLocation() + " (" + dateRange + ").";
     }
 
     @Transactional

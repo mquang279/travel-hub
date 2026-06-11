@@ -20,5 +20,6 @@ public record TripInfoResponse(
         TripStatus status,
         String inviteCode,
         Integer maxMembers,
-        List<String> imageUrls) {
+        List<String> imageUrls,
+        List<String> tripPhotoUrls) {
 }

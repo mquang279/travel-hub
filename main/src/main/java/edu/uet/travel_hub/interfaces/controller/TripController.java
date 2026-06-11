@@ -10,16 +10,23 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
+import edu.uet.travel_hub.application.dto.request.AddTripPhotosRequest;
+import edu.uet.travel_hub.application.dto.request.CreateTripPostRequest;
 import edu.uet.travel_hub.application.dto.request.JoinTripRequest;
 import edu.uet.travel_hub.application.dto.request.UpdateTripRequest;
+import edu.uet.travel_hub.application.dto.response.PostResponse;
 import edu.uet.travel_hub.application.dto.response.JoinTripResultResponse;
+import edu.uet.travel_hub.application.dto.response.PaginationResponse;
 import edu.uet.travel_hub.application.dto.response.SettlementResponse;
 import edu.uet.travel_hub.application.dto.response.TripDashboardResponse;
 import edu.uet.travel_hub.application.dto.response.TripDetailResponse;
 import edu.uet.travel_hub.application.dto.response.TripInfoResponse;
+import edu.uet.travel_hub.application.dto.response.TripPhotoResponse;
+import edu.uet.travel_hub.application.mapper.PostMapper;
 import edu.uet.travel_hub.application.port.out.CurrentUserProvider;
 import edu.uet.travel_hub.application.usecases.SettlementService;
 import edu.uet.travel_hub.application.usecases.TripService;
@@ -33,19 +40,32 @@ public class TripController {
     private final TripService tripService;
     private final SettlementService settlementService;
     private final CurrentUserProvider currentUserProvider;
+    private final PostMapper postMapper;
 
     public TripController(
             TripService tripService,
             SettlementService settlementService,
-            CurrentUserProvider currentUserProvider) {
+            CurrentUserProvider currentUserProvider,
+            PostMapper postMapper) {
         this.tripService = tripService;
         this.settlementService = settlementService;
         this.currentUserProvider = currentUserProvider;
+        this.postMapper = postMapper;
     }
 
     @GetMapping("/users/me/dashboard")
     public ResponseEntity<TripDashboardResponse> getDashboard() {
         return ResponseEntity.ok(this.tripService.getDashboard(this.currentUserProvider.getCurrentUserId()));
+    }
+
+    @GetMapping("/users/me/past-trips")
+    public ResponseEntity<PaginationResponse<TripDashboardResponse.PastTripResponse>> getPastTrips(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int pageSize) {
+        return ResponseEntity.ok(this.tripService.getPastTrips(
+                this.currentUserProvider.getCurrentUserId(),
+                page,
+                pageSize));
     }
 
     @GetMapping("/trips/{tripId}")
@@ -95,5 +115,32 @@ public class TripController {
     @PostMapping("/trips/{tripId}/finish")
     public ResponseEntity<List<SettlementResponse>> finishTrip(@PathVariable Long tripId) {
         return ResponseEntity.ok(this.settlementService.finishTrip(tripId, this.currentUserProvider.getCurrentUserId()));
+    }
+
+    @GetMapping("/trips/{tripId}/photos")
+    public ResponseEntity<List<TripPhotoResponse>> getTripPhotos(@PathVariable Long tripId) {
+        return ResponseEntity.ok(this.tripService.getTripPhotos(tripId, this.currentUserProvider.getCurrentUserId()));
+    }
+
+    @PostMapping("/trips/{tripId}/photos")
+    public ResponseEntity<List<TripPhotoResponse>> addTripPhotos(
+            @PathVariable Long tripId,
+            @RequestBody AddTripPhotosRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(this.tripService.addTripPhotos(
+                        tripId,
+                        this.currentUserProvider.getCurrentUserId(),
+                        request == null ? null : request.imageUrls()));
+    }
+
+    @PostMapping("/trips/{tripId}/publish-post")
+    public ResponseEntity<PostResponse> publishTripPost(
+            @PathVariable Long tripId,
+            @RequestBody(required = false) CreateTripPostRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(this.postMapper.toDto(this.tripService.publishTripPost(
+                        tripId,
+                        this.currentUserProvider.getCurrentUserId(),
+                        request)));
     }
 }

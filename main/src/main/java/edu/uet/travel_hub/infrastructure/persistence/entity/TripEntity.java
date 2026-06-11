@@ -39,7 +39,7 @@ import lombok.NoArgsConstructor;
         })
 @Getter
 @Setter
-@ToString(exclude = {"leader", "members", "days"})
+@ToString(exclude = {"leader", "members", "days", "photos"})
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
@@ -106,6 +106,10 @@ public class TripEntity {
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<TripActivityLogEntity> activityLogs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<TripPhotoEntity> photos = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
