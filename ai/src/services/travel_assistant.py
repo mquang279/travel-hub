@@ -345,8 +345,20 @@ class TravelAssistantService:
             return ""
 
         lines = [
-            "Retrieved place candidates from DB. Use them to ground recommendations and do not invent place facts:",
+            "Retrieved place candidates from the Travel Hub database. These places exist in the database. "
+            "Use them to ground the answer and never claim a listed place is missing from the database:",
         ]
+        direct_name_matches = [
+            str(row.get("name") or "").strip()
+            for row in rows
+            if int(row.get("lexical_score") or 0) >= 3
+        ]
+        if direct_name_matches:
+            lines.append(
+                "Direct database name match: "
+                + ", ".join(name for name in direct_name_matches if name)
+                + ". Answer using this record and do not say it is absent from the database."
+            )
         for index, row in enumerate(rows, start=1):
             title = row.get("name") or "Unknown place"
             province = row.get("province") or ""
@@ -369,7 +381,7 @@ class TravelAssistantService:
         strict_accent_match: bool = False,
     ) -> list[dict[str, Any]]:
         normalized_limit = min(max(limit, 1), 10)
-        raw_query = (keyword or "").strip()
+        raw_query = (keyword or "").strip().casefold()
         normalized_query = self._normalize_vietnamese(f"{keyword} {province}")
         matching_text = f"{raw_query} {province}" if strict_accent_match else normalized_query
         terms = self._query_terms(matching_text)
@@ -477,13 +489,26 @@ class TravelAssistantService:
                     (
                         SELECT COUNT(*)
                         FROM unnest($1::text[]) AS term
-                        WHERE sp.normalized_province LIKE '%' || term || '%'
-                           OR sp.normalized_codename LIKE '%' || term || '%'
+                        WHERE sp.normalized_name ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
+                           OR sp.normalized_description ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
+                           OR sp.normalized_province ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
+                           OR sp.normalized_codename ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
                     ) DESC,
                     (
                         SELECT COUNT(*)
                         FROM unnest($1::text[]) AS term
-                        WHERE sp.normalized_name LIKE '%' || term || '%'
+                        WHERE sp.normalized_name ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
+                    ) DESC,
+                    (
+                        SELECT COUNT(*)
+                        FROM unnest($1::text[]) AS term
+                        WHERE sp.normalized_description ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
+                    ) DESC,
+                    (
+                        SELECT COUNT(*)
+                        FROM unnest($1::text[]) AS term
+                        WHERE sp.normalized_province ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
+                           OR sp.normalized_codename ~ ('(^|[^[:alnum:]])' || term || '([^[:alnum:]]|$)')
                     ) DESC,
                     COUNT(tpr.id) DESC,
                     AVG(tpr.rating) DESC NULLS LAST,
@@ -752,41 +777,18 @@ class TravelAssistantService:
         if not rows:
             return []
 
-        if self._needs_place_suggestions(query):
-            return [self._to_reference(row) for row in rows]
+        direct_name_matches = [
+            row for row in rows
+            if int(row.get("lexical_score") or 0) >= 3
+        ]
+        if direct_name_matches:
+            return [self._to_reference(row) for row in direct_name_matches]
 
         mentioned_rows = [
             row for row in rows
             if self._answer_mentions_place(answer=answer, place_name=str(row.get("name") or ""))
         ]
         return [self._to_reference(row) for row in mentioned_rows]
-
-    def _needs_place_suggestions(self, query: str) -> bool:
-        normalized = self._normalize_vietnamese(query)
-        if not normalized:
-            return False
-
-        intent_phrases = (
-            "goi y",
-            "de xuat",
-            "khuyen nghi",
-            "nen di dau",
-            "di dau",
-            "choi dau",
-            "an dau",
-            "dia diem nao",
-            "tim dia diem",
-            "tim cho",
-            "review dia diem",
-            "xem review",
-            "lich trinh",
-            "ke hoach",
-            "tham quan",
-            "du lich o dau",
-            "cuoi tuan nay di dau",
-            "co dia diem nao",
-        )
-        return any(phrase in normalized for phrase in intent_phrases)
 
     def _answer_mentions_place(self, answer: str, place_name: str) -> bool:
         normalized_answer = self._normalize_vietnamese(answer)
@@ -848,6 +850,9 @@ class TravelAssistantService:
             "review",
             "tot",
             "goi",
+            "xin",
+            "vai",
+            "di",
         }
         terms = []
         for term in re.split(r"[^\w]+", self._normalize_vietnamese(text)):
