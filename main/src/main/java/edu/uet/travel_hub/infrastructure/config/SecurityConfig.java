@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults()) // Enable CORS
                 .authorizeHttpRequests(
                         (authz) -> authz
+                                .requestMatchers("/uploads/**").permitAll()
                                 .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/refresh")
                                 .permitAll()
                                 .requestMatchers("/api/auth/logout").authenticated()
