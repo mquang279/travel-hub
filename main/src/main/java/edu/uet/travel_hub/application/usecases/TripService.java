@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import edu.uet.travel_hub.application.dto.request.CreateTripRequest;
@@ -171,27 +173,23 @@ public class TripService {
             int pageSize) {
         int safePage = Math.max(0, page);
         int safePageSize = Math.min(Math.max(1, pageSize), 50);
-        List<TripDashboardResponse.PastTripResponse> pastTrips = this.tripJpaRepository
-            .findDistinctByMembersUserIdOrderByStartDateAsc(currentUserId)
+        Page<TripEntity> pastTripPage = this.tripJpaRepository
+            .findPastActiveMemberTripsOrderByEndDateDesc(
+                currentUserId,
+                TripMemberStatus.ACTIVE,
+                TripStatus.COMPLETED,
+                LocalDate.now(),
+                PageRequest.of(safePage, safePageSize));
+        List<TripDashboardResponse.PastTripResponse> pageData = pastTripPage
             .stream()
-            .filter(trip -> isActiveMember(trip, currentUserId))
-            .filter(trip -> resolveDashboardStatus(trip) == TripStatus.COMPLETED)
-            .sorted((left, right) -> compareNullableDatesDesc(left.getEndDate(), right.getEndDate()))
             .map(this::toPastTrip)
             .toList();
-
-        int totalElements = pastTrips.size();
-        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / safePageSize);
-        int fromIndex = safePage * safePageSize;
-        List<TripDashboardResponse.PastTripResponse> pageData = fromIndex >= totalElements
-                ? List.of()
-                : pastTrips.subList(fromIndex, Math.min(fromIndex + safePageSize, totalElements));
 
         return new PaginationResponse<>(
                 safePage,
                 safePageSize,
-                totalPages,
-                (long) totalElements,
+                pastTripPage.getTotalPages(),
+                pastTripPage.getTotalElements(),
                 pageData);
     }
 
@@ -626,10 +624,6 @@ public class TripService {
             return -1;
         }
         return left.compareTo(right);
-    }
-
-    private int compareNullableDatesDesc(LocalDate left, LocalDate right) {
-        return compareNullableDates(right, left);
     }
 
     private String normalizeRequired(String value, String fieldName) {
