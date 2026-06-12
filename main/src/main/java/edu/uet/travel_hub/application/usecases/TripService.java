@@ -368,7 +368,7 @@ public class TripService {
 
     @Transactional
     public PostModel publishTripPost(Long tripId, Long currentUserId, CreateTripPostRequest request) {
-        TripEntity trip = requireLeaderTrip(tripId, currentUserId);
+        TripEntity trip = requireActiveMemberTrip(tripId, currentUserId);
         if (resolveDashboardStatus(trip) != TripStatus.COMPLETED) {
             throw new IllegalStateException("Trip must be completed before publishing a post");
         }
@@ -391,7 +391,13 @@ public class TripService {
                 .build();
         PostModel savedPost = this.postRepository.save(currentUserId, post);
         this.userRepository.incrementPosts(currentUserId);
-        this.tripActivityLogService.log(trip, trip.getLeader(), "PUBLISH_TRIP_POST", "POST", savedPost.getId(), "trip post published");
+        this.tripActivityLogService.log(
+                trip,
+                findUser(currentUserId),
+                "PUBLISH_TRIP_POST",
+                "POST",
+                savedPost.getId(),
+                "trip post published");
         return savedPost;
     }
 
