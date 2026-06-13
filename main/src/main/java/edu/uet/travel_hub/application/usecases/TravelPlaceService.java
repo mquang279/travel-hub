@@ -257,6 +257,12 @@ public class TravelPlaceService {
                 ratingCounts);
     }
 
+    @Transactional(readOnly = true)
+    public TravelPlaceReviewResponse getMyReview(Long placeId, Optional<Long> currentUserId) {
+        ensurePlaceExists(placeId);
+        return resolveMyReview(placeId, currentUserId);
+    }
+
     @Transactional
     @CacheEvict(cacheNames = {
             CACHE_TRAVEL_PLACE_LISTS,

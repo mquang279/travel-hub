@@ -90,6 +90,14 @@ public class TravelPlaceController {
         return ResponseEntity.ok(this.travelPlaceService.getReviewListSummary(placeId));
     }
 
+    @GetMapping("/{placeId}/review/me")
+    public ResponseEntity<TravelPlaceReviewResponse> getMyReview(@PathVariable Long placeId) {
+        TravelPlaceReviewResponse response = this.travelPlaceService.getMyReview(
+                placeId,
+                this.currentUserProvider.getOptionalCurrentUserId());
+        return response == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{placeId}/review")
     public ResponseEntity<TravelPlaceReviewResponse> upsertReview(
             @PathVariable Long placeId,

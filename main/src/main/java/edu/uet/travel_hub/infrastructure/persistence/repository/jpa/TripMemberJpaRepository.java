@@ -2,6 +2,7 @@ package edu.uet.travel_hub.infrastructure.persistence.repository.jpa;
 
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import edu.uet.travel_hub.domain.enums.TripMemberRole;
@@ -16,6 +17,7 @@ public interface TripMemberJpaRepository extends JpaRepository<TripMemberEntity,
 
     boolean existsByTripIdAndUserId(Long tripId, Long userId);
 
+    @EntityGraph(attributePaths = {"user"})
     List<TripMemberEntity> findByTripIdAndStatus(Long tripId, TripMemberStatus status);
 
     long countByTripId(Long tripId);
@@ -24,5 +26,6 @@ public interface TripMemberJpaRepository extends JpaRepository<TripMemberEntity,
 
     long countByTripIdAndRole(Long tripId, TripMemberRole role);
 
+    @EntityGraph(attributePaths = {"user"})
     List<TripMemberEntity> findByTripIdAndStatusOrderByRequestedAtAsc(Long tripId, TripMemberStatus status);
 }
