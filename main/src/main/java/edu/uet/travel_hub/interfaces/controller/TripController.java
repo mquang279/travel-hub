@@ -133,6 +133,14 @@ public class TripController {
                         request == null ? null : request.imageUrls()));
     }
 
+    @DeleteMapping("/trips/{tripId}/photos/{photoId}")
+    public ResponseEntity<Void> deleteTripPhoto(
+            @PathVariable Long tripId,
+            @PathVariable Long photoId) {
+        this.tripService.deleteTripPhoto(tripId, photoId, this.currentUserProvider.getCurrentUserId());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/trips/{tripId}/publish-post")
     public ResponseEntity<PostResponse> publishTripPost(
             @PathVariable Long tripId,

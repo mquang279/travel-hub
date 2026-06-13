@@ -365,6 +365,21 @@ public class TripService {
     }
 
     @Transactional
+    public void deleteTripPhoto(Long tripId, Long photoId, Long currentUserId) {
+        TripEntity trip = requireActiveMemberTrip(tripId, currentUserId);
+        TripPhotoEntity photo = this.tripPhotoJpaRepository.findByIdAndTripId(photoId, tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip photo not found"));
+        boolean isLeader = trip.getLeader() != null && trip.getLeader().getId().equals(currentUserId);
+        boolean isUploader = photo.getUploadedBy() != null && photo.getUploadedBy().getId().equals(currentUserId);
+        if (!isLeader && !isUploader) {
+            throw new edu.uet.travel_hub.application.exception.ForbiddenTripActionException("Only the uploader or trip leader can delete this photo");
+        }
+
+        this.tripPhotoJpaRepository.delete(photo);
+        this.tripActivityLogService.log(trip, findUser(currentUserId), "DELETE_TRIP_PHOTO", "TRIP_PHOTO", photoId, "trip photo deleted");
+    }
+
+    @Transactional
     public PostModel publishTripPost(Long tripId, Long currentUserId, CreateTripPostRequest request) {
         TripEntity trip = requireActiveMemberTrip(tripId, currentUserId);
         if (resolveDashboardStatus(trip) != TripStatus.COMPLETED) {
